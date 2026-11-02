@@ -573,21 +573,18 @@ Newest first. Each entry: what changed, and why if non-obvious.
 - [ ] **Submission repository.** Student number **2800269**, so the graded repository must be
       `2800269-sdp-exam-2026` and be private on `sdp.ms.wits.ac.za`; it is scanned at lunch and 30
       minutes before the end. This workspace is still on
-      `origin → https://sdp.ms.wits.ac.za/YMegersa/SDP_Exam.git`, which **will not be detected**. From a
-      network that can reach the host:
+      `origin → https://sdp.ms.wits.ac.za/YMegersa/SDP_Exam.git`, which **will not be detected**, and the
+      graded repository does not exist yet: a dry-run push to that name answers
+      `403: push to create is not enabled for users`. Once it exists, privately, the switch is:
 
       ```bash
       git remote set-url origin https://sdp.ms.wits.ac.za/<namespace>/2800269-sdp-exam-2026.git
       git push -u origin main
       ```
-
-      This environment reaches the host but holds no repository credentials (both repositories answer
-      `401`), so creating the graded repository, renaming the remote and pushing have to happen where the
-      student's credentials live. Until then the five commits above stay local.
-- [ ] **Uncommitted work.** None: the work sits on `main` in five logical commits — the alert
-      reconciliation fix, the test suite, the plugin refactor, the web fixes and this README with its
-      screenshots. Nothing is pushed: the host answers `401` to this environment, which holds no
-      repository credentials.
+- [x] **Work is committed and backed up.** Six commits on `main` (`6ddf208`…`0caeeed`: the alert
+      reconciliation fix, the test suite, the plugin refactor, the web fixes, README v2 and this note),
+      pushed to `origin` so the tree is off this machine while the graded repository is created. Only the
+      rename and the final push remain.
 - [ ] Brief §3.1 planning answers still to be written up in their own words: "What is MQTT / how does it
       work", "initial architecture", "why a bespoke solution over off-the-shelf", "what should the
       application look like". (The stack/service/order/storage answers are captured in D1–D5 above.)
