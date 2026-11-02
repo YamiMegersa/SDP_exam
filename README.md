@@ -8,8 +8,8 @@ This README is the single entry point for the project **and the live progress tr
 Decisions, decision changes, implemented features, known bugs and open questions are recorded here as
 they happen (see [Progress Log](#progress-log) and [Decision Register](#decision-register)).
 
-**Student number 2800269.** The graded repository is therefore `2800269-sdp-exam-2026`, private, on
-`sdp.ms.wits.ac.za` — see [Open Items](#open-items--questions) for its state.
+**Student number 2800269.** The graded repository is `2800269-sdp-exam-2026`, private, on
+`sdp.ms.wits.ac.za` — this workspace's `origin`.
 
 > Running the ARL sim locally: see [Running Locally](#running-locally).
 > Running the platform: see [Running the Platform](#running-the-platform).
@@ -473,6 +473,9 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 
 Newest first. Each entry: what changed, and why if non-obvious.
 
+- **2026-11-02 — Submitted.** The graded repository `2800269-sdp-exam-2026` was created private on
+  `sdp.ms.wits.ac.za` and `main` was pushed to it (`origin` now points there, not at `SDP_Exam`). Nothing
+  about the code changed: this is the point where the examiner's scan starts seeing the work.
 - **2026-11-02 — Screenshots captured from the live platform, and reviewing them found four defects**
   (six routes in `docs/screenshots/`, embedded above). No headless Chromium on this machine and `/tmp`
   is read-only in the sandbox, so the capture harness drives Firefox's WebDriver BiDi endpoint instead;
@@ -570,21 +573,10 @@ Newest first. Each entry: what changed, and why if non-obvious.
 
 ## Open Items / Questions
 
-- [ ] **Submission repository.** Student number **2800269**, so the graded repository must be
-      `2800269-sdp-exam-2026` and be private on `sdp.ms.wits.ac.za`; it is scanned at lunch and 30
-      minutes before the end. This workspace is still on
-      `origin → https://sdp.ms.wits.ac.za/YMegersa/SDP_Exam.git`, which **will not be detected**, and the
-      graded repository does not exist yet: a dry-run push to that name answers
-      `403: push to create is not enabled for users`. Once it exists, privately, the switch is:
-
-      ```bash
-      git remote set-url origin https://sdp.ms.wits.ac.za/<namespace>/2800269-sdp-exam-2026.git
-      git push -u origin main
-      ```
-- [x] **Work is committed and backed up.** Six commits on `main` (`6ddf208`…`0caeeed`: the alert
-      reconciliation fix, the test suite, the plugin refactor, the web fixes, README v2 and this note),
-      pushed to `origin` so the tree is off this machine while the graded repository is created. Only the
-      rename and the final push remain.
+- [x] **Submission repository.** `2800269-sdp-exam-2026` exists, is private, and is this workspace's
+      `origin`; `main` is pushed and tracks `origin/main`. A private repository answers `404` to
+      anonymous API and HTML requests, which is what an unauthenticated probe of it returns. It is
+      scanned at lunch and 30 minutes before the end, so every further push has to go here.
 - [ ] Brief §3.1 planning answers still to be written up in their own words: "What is MQTT / how does it
       work", "initial architecture", "why a bespoke solution over off-the-shelf", "what should the
       application look like". (The stack/service/order/storage answers are captured in D1–D5 above.)
