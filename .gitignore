@@ -1,0 +1,18 @@
+node_modules/
+dist/
+web/dist/
+data/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.vite/
+.logs/
+
+# Vendor ARL archives: the extracted Services/ directories are tracked instead.
+Services/*.zip
+Services/*.tar.gz
