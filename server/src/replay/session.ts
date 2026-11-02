@@ -225,7 +225,8 @@ export class ReplaySession {
   private resetSource(source: Source, ts: number): void {
     source.buffer = [];
     source.lastTs = ts;
-    source.lastId = Number.MAX_SAFE_INTEGER;
+    // The keyset is (ts, id) exclusive, so id 0 keeps the rows that sit exactly on the seek target.
+    source.lastId = 0;
     source.exhausted = false;
   }
 
@@ -241,10 +242,12 @@ export class ReplaySession {
         this.finish();
         return;
       }
-      const ts = Number(next.ts);
+      const ts = Number(next.row.ts);
       if (ts > target) break;
-      this.shift();
-      this.release(next);
+      // Consume from the source the row actually came from: draining whichever buffer happened
+      // to be first released one source's rows as another's kind and left its head to repeat.
+      this.shift(next.source);
+      this.release(toFrame(next.source.name, next.row));
       this.cursor = Math.max(this.cursor, ts);
       released += 1;
       if (this.emitted >= HARD_ROW_LIMIT) {
@@ -259,8 +262,8 @@ export class ReplaySession {
     if (target >= this.to && !this.peek()) this.finish();
   }
 
-  /** Smallest-ts row across the three sources, refilling the one that ran dry. */
-  private peek(): ReplayFrame | null {
+  /** Smallest-ts row across the three sources, refilling the one that ran dry. Not consuming. */
+  private peek(): { source: Source; row: Record<string, unknown> } | null {
     for (const source of this.sources) {
       if (source.buffer.length === 0 && !source.exhausted) this.refill(source);
     }
@@ -270,18 +273,14 @@ export class ReplaySession {
       if (!row) continue;
       if (!best || Number(row.ts) < Number(best.row.ts)) best = { source, row };
     }
-    return best ? toFrame(best.source.name, best.row) : null;
+    return best;
   }
 
-  private shift(): void {
-    for (const source of this.sources) {
-      const row = source.buffer[0];
-      if (!row) continue;
-      source.buffer.shift();
-      source.lastTs = Number(row.ts);
-      source.lastId = Number(row.id);
-      return;
-    }
+  private shift(source: Source): void {
+    const row = source.buffer.shift();
+    if (!row) return;
+    source.lastTs = Number(row.ts);
+    source.lastId = Number(row.id);
   }
 
   private refill(source: Source): void {
