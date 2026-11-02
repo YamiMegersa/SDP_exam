@@ -87,6 +87,19 @@ function baseUrl(address: string, port: number): string {
   return hasPort ? withScheme.replace(/\/$/, '') : `${withScheme}:${port}`;
 }
 
+/**
+ * Accepts "host", "host:1883", "mqtt://host" and the hand-out's "http://host", and returns the
+ * bare host (or host:port). The scheme belongs to the address the exam supplies, not to the
+ * transport the platform dials: mqtt.js is handed `mqtt://` in `Ingest`, so a second scheme left on
+ * the front would become part of the hostname and never resolve.
+ */
+function brokerHost(address: string): string {
+  return address
+    .trim()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+    .replace(/\/.*$/, '');
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const missing: string[] = [];
   for (const key of ['MQTT_BROKER_ADDRESS', 'MQTT_BROKER_PORT', 'ARL_API_ADDRESS', 'ARL_API_PORT']) {
@@ -109,7 +122,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dbPath: str(env, 'DB_PATH', './data/arl.sqlite'),
     services,
     mqtt: {
-      address: str(env, 'MQTT_BROKER_ADDRESS'),
+      address: brokerHost(str(env, 'MQTT_BROKER_ADDRESS')),
       port: num(env, 'MQTT_BROKER_PORT', 1883),
       user: str(env, 'MQTT_BROKER_USER'),
       password: str(env, 'MQTT_BROKER_PASSWORD'),

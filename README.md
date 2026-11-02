@@ -39,7 +39,7 @@ The exam requires three of the five ARL services. **Selected:**
 | Platform | 5% | Architecture | — | Implemented (shared shell + service plugins) |
 | Platform | 5% | Security | — | Implemented, verified (403/503 gates) |
 | Platform | 2.5% | UI / UX | — | Implemented (three workspaces, alerts, replay) |
-| Platform | 2.5% | Testing | — | 97 tests, 7 files, passing |
+| Platform | 2.5% | Testing | — | 103 tests, 8 files, passing |
 
 Implementation order: **RTA → OPG → MHE**. The shared shell (ingestion, persistence, alerts, replay,
 websocket push) is built first and is generic; each service then plugs in.
@@ -235,6 +235,24 @@ Everything is configured through environment variables. No credentials are commi
 
 Only the four `MQTT_*`/`ARL_API_*` address variables are mandatory; the rest have defaults. Nothing in
 the repository contains a broker or API credential.
+
+### The lab handed out with the brief
+
+The exam supplies one broker and one API on `wmc.ms.wits.ac.za`, with the credentials in the hand-out.
+Those belong in `.env`, which is gitignored, so no credential is committed:
+
+```bash
+MQTT_BROKER_ADDRESS=http://wmc.ms.wits.ac.za   # the hand-out writes the scheme; it is stripped
+MQTT_BROKER_PORT=1883
+MQTT_BROKER_USER=<from the hand-out>
+MQTT_BROKER_PASSWORD=<from the hand-out>
+ARL_API_ADDRESS=http://wmc.ms.wits.ac.za
+ARL_API_PORT=8080
+```
+
+`MQTT_BROKER_ADDRESS` accepts `http://host`, `mqtt://host` or a bare `host`, with the port attached or
+supplied separately, so the value can be pasted from the brief unchanged (D15). `.env` is read but never
+allowed to override the process environment, so a one-off `MQTT_BROKER_ADDRESS=… npm start` still wins.
 
 ---
 
@@ -450,7 +468,7 @@ rebuilt from the stored scan rows — not from the broker or the API backlog.
 ## Testing
 
 ```bash
-npm test            # 97 tests across 7 files (vitest)
+npm test            # 103 tests across 8 files (vitest)
 npm run test:watch  # no root script — the watcher is `npm --workspace server run test:watch`
 npm run --workspace server test:typecheck   # typecheck the tests too
 ```
@@ -467,6 +485,7 @@ tests never touch `data/arl.sqlite`.
 | `test/derived.test.ts` | every plugin measure including the OPG autonomy formula, MHE headcount mismatch, CO₂ escalation, night-time solar share, and `unknown` rather than invented values when nothing has arrived |
 | `test/ingest.test.ts` | scenario-driven: topology after samples (orphan drain), wildcard routing, unconfigured services, sequence-gap alerts, state de-duplication, scalar retained state, alert events, offline flips |
 | `test/api.test.ts` | supertest against the real Express app: derived endpoint, 400/403/503/409/200 on alert mutations with no audit write on refusal, replay lifecycle, health/services/alerts reads, JSON 404 |
+| `test/config.test.ts` | address normalisation: the hand-out's `http://` broker address, one scheme and one port in the API base URL, empty credentials meaning an anonymous broker, and the fail-fast on a missing or non-numeric variable |
 
 These tests have already earned their keep: `?service=` on `/api/derived` was validated but never
 applied until the API test failed, the replay interleave is pinned so the empty-mosaic regression
@@ -520,6 +539,7 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 | D12 | 2026-11-02 | Every derived verdict is compared against the ARL alert limits the service publishes, and returns `unknown` when a limit or input is missing | A threshold duplicated in the UI drifts from the service's own rule set (this is defect D-10 in `00` §6); `unknown` is an honest answer, a fabricated zero is not | Literal thresholds in the client; substituting 0 for a missing sample |
 | D13 | 2026-11-02 | Platform alerts are reconciled at startup, not only on a transition: `brokerConnected` starts `false` and `AlertEngine.start()` sweeps immediately | A CRITICAL `broker_disconnected` raised in one run survived the restart that fixed it and stayed red for the rest of the session, because the engine only clears on an edge it never saw. Now the first `connect` closes the old row and the first sweep clears stale silence/gap alerts; the close is an audit transition, not a deletion | Trusting the stored row (a lying red banner); deleting platform alerts on boot (destroys the trail of when the platform lost the broker) |
 | D14 | 2026-11-02 | The MHE habitat plan is height-capped and never allowed to shrink (`max-h-[44vh]`, `max-w-[620px]`, `shrink-0` on its panel) | Sizing the SVG by width alone made it grow to the column width and paint over the compartment detail and crew strip below; letting the flex box squeeze it made the drawing (and its hit areas) unreadable. A fixed-aspect drawing scrolls the column instead | Absolute positioning over the layout (still overlaps); rasterising the plan to an image (loses live hazard colouring) |
+| D15 | 2026-11-02 | The broker address is reduced to a bare host before mqtt.js sees it (`brokerHost` in `config.ts`), so the hand-out's `http://wmc.ms.wits.ac.za` works verbatim | The brief supplies the broker as a URL with an `http` scheme while the transport is `mqtt://`; concatenating both produced `mqtt://http://host:1883`, whose hostname is `http` and which never connects. Stripping the scheme at the edge keeps every other module thinking in hosts | Requiring the hand-out value to be rewritten by hand (a silent trap, and not what the brief says); teaching `Ingest` to parse URLs itself (two places deciding the same thing) |
 
 ---
 
@@ -527,6 +547,17 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 
 Newest first. Each entry: what changed, and why if non-obvious.
 
+- **2026-11-02 — Pointed the platform at the exam lab (`wmc.ms.wits.ac.za`).** The hand-out supplies the
+  broker as `http://wmc.ms.wits.ac.za`, which the old code turned into `mqtt://http://…`: hostname
+  `http`, nothing ever connecting. `config.ts` now reduces the address to a bare host (D15), and
+  `Ingest` stops appending a second port when the host already carries one. Against the lab: broker
+  connected on the first dial, topologies for RTA (102 entities, 2 streams, 12 controls), MHE (15/6/9)
+  and OPG (4/4/6); `/api/derived` returns real numbers (OPG +67.5 kW with solar share 1.0 and autonomy
+  `—` because the bank is idle; MHE headcount 5, stress 44, CO₂ 508 ppm); the directory answers from the
+  live API (`arl-as3` → Person A, experiments `rta,mhe,lwm,pes`) and refuses what it should — unknown
+  code 403 `unknown`, `arl-as3` on OPG 403 `not_permitted`, a string where the control wants a bool 400.
+  The lab runs into `data/arl-lab.sqlite` so replay stays a record of the lab, not a mix with the local
+  bundle. Eight tests now pin the address handling (103 total).
 - **2026-11-02 — Documented the container-free path to the simulator.** The bundle ships native binaries
   as well as images, and its `README.md` says so under `## Binary`, but the two paths that are easy to
   get wrong were only in the planning set: the API still wants Postgres 16 (no embedded store), and RTA
@@ -669,7 +700,7 @@ produced **D-9** (survey and vitals payloads lose their crew attribution — `Li
 envelope `entity`) and **D-10** (the MHE and OPG pages hard-code thresholds that contradict the limits
 the ARL API serves). Both are recorded in `00` §6 with the file that fixes them.
 
-Register naming, since three registers share letters: `D1`–`D14` are **decisions** (Decision Register),
+Register naming, since three registers share letters: `D1`–`D15` are **decisions** (Decision Register),
 `D-1`–`D-10` are **defects** (`00` §6), and `R1`–`R12` are **risks** (Known Issues).
 
 ---

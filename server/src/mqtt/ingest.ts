@@ -82,7 +82,11 @@ export class Ingest {
 
   start(): void {
     const { address, port, user, password, clientId, queueLimit } = this.cfg.mqtt;
-    const url = /^mqtts?:\/\//i.test(address) ? address : `mqtt://${address}:${port}`;
+    // `config` hands over a bare host, which may already carry its port ("host:1883").
+    const addressHasPort = /:\d+$/.test(address);
+    const url = /^mqtts?:\/\//i.test(address)
+      ? address
+      : `mqtt://${address}${addressHasPort ? '' : `:${port}`}`;
     log.info(`connecting to ${url.replace(/\/\/.*@/, '//')} as ${clientId}`);
 
     this.client = mqtt.connect(url, {
