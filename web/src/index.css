@@ -1,0 +1,228 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Karoo High-Tech Industrial Observatory.
+ *
+ * The tokens below are the ones the design system hands out as raw CSS, plus the
+ * handful of instrument motifs (scanlines, flashing annunciator, LED) that repeat
+ * on every panel. Everything else is expressed with Tailwind utilities on purpose:
+ * a dense console is easier to keep consistent when the spacing lives next to the
+ * markup.
+ */
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --panel: #111827;
+    --panel-edge: #1f293d;
+    --void: #0a0d14;
+    --nominal: #10b981;
+    --caution: #f59e0b;
+    --alarm: #ef4444;
+    --in-hand: #6366f1;
+    --inert: #475569;
+    --rta: #38bdf8;
+    --mhe: #fb923c;
+    --opg: #facc15;
+    --replay: #a855f7;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-base-950 text-ink-100 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04';
+    overscroll-behavior: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0b0e14;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #26303f;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #33415a;
+  }
+
+  ::selection {
+    background: rgba(56, 189, 248, 0.28);
+  }
+
+  /* Keyboard focus has to be obvious on a console driven at 3 a.m. */
+  :focus-visible {
+    outline: 2px solid var(--rta);
+    outline-offset: 1px;
+  }
+
+  input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: #26303f;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -5px;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #38bdf8;
+    border: 2px solid #0a0d14;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  }
+}
+
+@layer components {
+  .arl-panel {
+    background-color: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  }
+
+  .telemetry-readout {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-feature-settings: 'tnum' on, 'zero' on;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Instrument panel seam: 1px rule used as a section divider inside a panel. */
+  .seam {
+    @apply border-t border-base-600/60;
+  }
+
+  .led {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    flex: none;
+  }
+  .led-nominal {
+    background-color: var(--nominal);
+    box-shadow: 0 0 8px var(--nominal);
+  }
+  .led-caution {
+    background-color: var(--caution);
+    box-shadow: 0 0 8px var(--caution);
+    animation: led-pulse 1.6s infinite ease-in-out;
+  }
+  .led-alarm {
+    background-color: var(--alarm);
+    box-shadow: 0 0 10px var(--alarm);
+    animation: led-pulse 1.2s infinite ease-in-out;
+  }
+  .led-inert {
+    background-color: var(--inert);
+    box-shadow: none;
+  }
+
+  /* Unacknowledged annunciator tiles flash at ~1.5 Hz, like a real master alarm board. */
+  .annunciator-flash {
+    animation: annunciator 0.66s steps(1, end) infinite;
+  }
+
+  /* Faint horizontal scanlines on the raster viewer, so the canvas reads as a screen. */
+  .crt::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.022) 0px,
+      rgba(255, 255, 255, 0.022) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #26303f transparent;
+  }
+}
+
+@keyframes led-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes annunciator {
+  0%,
+  49% {
+    background-color: rgba(239, 68, 68, 0.24);
+    border-color: rgba(239, 68, 68, 0.85);
+  }
+  50%,
+  100% {
+    background-color: rgba(239, 68, 68, 0.06);
+    border-color: rgba(239, 68, 68, 0.35);
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+/* Energy flow: moving dashes show direction and, via duration, magnitude. */
+@keyframes flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.flow-line {
+  stroke-dasharray: 3 9;
+  animation: flow 1s linear infinite;
+}
+
+.flow-line-fast {
+  animation-duration: 0.45s;
+}
+
+.flow-line-slow {
+  animation-duration: 2.4s;
+}
+
+.flow-line-idle {
+  animation: none;
+  stroke-dasharray: 1 7;
+  opacity: 0.45;
+}
+
+/* Reduced motion: keep the information, drop the blinking. */
+@media (prefers-reduced-motion: reduce) {
+  .annunciator-flash,
+  .led-alarm,
+  .led-caution {
+    animation: none !important;
+  }
+}
