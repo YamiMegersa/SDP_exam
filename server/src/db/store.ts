@@ -700,10 +700,13 @@ export class Store {
     const upd = this.db.prepare(
       `UPDATE command SET state = 'timeout', reason = 'timeout', settled_ts = ? WHERE command_id = ?`,
     );
+    const settled = Date.now();
     this.db.transaction(() => {
-      for (const r of rows) upd.run(Date.now(), r.command_id);
+      for (const r of rows) upd.run(settled, r.command_id);
     })();
-    return rows.map((r) => ({ ...r, value: safeJson(r.value, r.value) }));
+    // The rows as they now are: the caller broadcasts them, and a browser shown the pre-expiry
+    // `queued` would keep a spinner on a command that is over.
+    return rows.map((r) => ({ ...r, state: 'timeout', reason: 'timeout', settled_ts: settled, value: safeJson(r.value, r.value) }));
   }
 
   // -------------------------------------------------------------- researchers
