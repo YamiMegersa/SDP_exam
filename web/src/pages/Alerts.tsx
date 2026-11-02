@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, Filter, RefreshCw } from 'lucide-react';
 import { api, errorText } from '../lib/api';
 import { AlertActionModal } from '../components/AlertAction';
+import { AlertContextCard } from '../components/AlertContext';
 import { Button, Empty, Panel, PanelHead, Pill } from '../components/ui';
 import { clockTime, dateTime } from '../lib/format';
 import { useLive } from '../lib/hooks';
@@ -281,6 +282,14 @@ export function AlertsPage() {
                     ))
                   )}
                 </ol>
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-2xs font-bold uppercase tracking-widest text-ink-400">context</span>
+                  <span className="h-px flex-1 bg-base-700" />
+                </div>
+                <AlertContextCard alert={selected} />
               </div>
             </div>
           )}

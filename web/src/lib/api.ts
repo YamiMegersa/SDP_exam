@@ -154,6 +154,8 @@ export const api = {
     request<{ alert: AlertRecord; transitions: AlertTransition[]; researcher: Researcher | null }>(
       `/alerts/${encodeURIComponent(id)}`,
     ),
+  alertContext: (id: string) =>
+    request<unknown>(`/alerts/${encodeURIComponent(id)}/context`),
   acknowledge: (id: string, body: { researcher: string; note?: string }) =>
     request<{ alert: AlertRecord }>(`/alerts/${encodeURIComponent(id)}/acknowledge`, {
       method: 'POST',

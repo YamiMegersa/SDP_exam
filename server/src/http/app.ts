@@ -13,6 +13,7 @@ import { deriveAll } from '../services';
 import type { TopologyRegistry } from '../topology/registry';
 import type { SimClock } from '../util/clock';
 import { logger } from '../util/log';
+import { buildContext } from '../alerts/context';
 
 const log = logger('http');
 
@@ -235,6 +236,17 @@ export function createApp(deps: AppDeps): express.Express {
       transitions: deps.store.listTransitions(alert.alert_id),
       researcher: alert.ack_by ? deps.store.cachedResearcher(alert.ack_by, Number.MAX_SAFE_INTEGER) : null,
     });
+  });
+
+  api.get('/alerts/:id/context', (req, res) => {
+    const alert = deps.store.getAlert(req.params.id);
+    if (!alert) return res.status(404).json({ error: 'alert_not_found' });
+    const allTopologies = deps.registry.all();
+    const controls = allTopologies.flatMap((t) =>
+      t.controls.map((c) => ({ service: t.service, control: c.control, entityKinds: c.entityKinds })),
+    );
+    const context = buildContext(alert, { store: deps.store, topology: { controls } });
+    res.json(context);
   });
 
   api.post('/alerts/:id/acknowledge', async (req, res) => {
