@@ -39,7 +39,7 @@ precisely rather than being fixed by a general restyle.
 
 | Clause | Where | Verdict |
 | :--- | :--- | :--- |
-| All 13 colour tokens (§2 A/B/C) | `tailwind.config.js` `theme.extend.colors`, `index.css` `:root` | Exact — every hex matches |
+| All 14 colour tokens (§2 A/B/C) | `tailwind.config.js` `theme.extend.colors`, `index.css` `:root` | Exact — every hex matches |
 | `.arl-panel`, `.telemetry-readout` (§8) | `index.css:94–105` | Exact, typography rule included (`tnum`, `zero`) |
 | Cyan→amber scan ramp (§5.1) | `imaging.ts:39–43` | Exact, all five stops, plus the white top |
 | 10 × 10 dish grid (§5.1) | `Rta.tsx:249` `grid-cols-10` | Exact topology, tile size unconstrained |
@@ -78,7 +78,7 @@ rather than through a second number.
 #### 4.1.1 Colour tokens
 
 - **Responsibility.** One source for every colour, so that a colour can be trusted to mean something.
-- **Contract.** Two representations of the same 13 values, and no third:
+- **Contract.** Two representations of the same 14 values, and no third:
   ```css
   /* index.css :root — for CSS and inline styles */
   --void --panel --panel-edge --elev --hover

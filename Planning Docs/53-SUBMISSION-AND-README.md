@@ -47,7 +47,7 @@ Open Items, AI Declaration, Licences.
 That is a strong README. It is also **still edited by another instance of this conversation**, which is
 the single most important constraint on this document (§4.3).
 
-The planning set is complete and separate: 32 documents, `00`–`53`, ~9,300 lines, none of them
+The planning set is complete and separate: 33 documents, `00`–`53`, ~9,400 lines, none of them
 referenced from the README yet.
 
 ### 2.1 The claim audit (the finding that matters)
@@ -81,7 +81,7 @@ options are (a) write the tests, or (b) label the section as planned. (a) is che
 | Gap | Rubric effect | Fix |
 | :--- | :--- | :--- |
 | `npm test` fails while the README claims it runs (D-1) | Architecture floor at risk; Testing ≤ 25 % | §4.1.3: make the claim true, or make the label honest — in that order of preference |
-| Nothing in the README points at `Planning Docs/` | ~9 300 lines of reasoning that a marker never opens | §4.2 |
+| Nothing in the README points at `Planning Docs/` | ~9 400 lines of reasoning that a marker never opens | §4.2 |
 | No §"Harness" commands (`stack.sh`, `drill.sh`, fixtures, `verify`) | `51`/`52` plan commands that do not exist yet; the README cannot promise them | §4.1.2, phased |
 | Two registers use the same letter | "D4" (a decision) and "D-4" (a defect) will be confused | §4.3.3 convention |
 | No rubric self-audit | The marker has to reconstruct which file answers which criterion | §4.5 |
@@ -143,7 +143,7 @@ noted once (it already is, R11). A marker should never need `dev`.
 
 #### 4.2.1 What it is
 
-32 documents in `Planning Docs/`, one per component, each decomposed into subsystems and subcomponents
+33 documents in `Planning Docs/`, one per component, each decomposed into subsystems and subcomponents
 with a **Responsibility / Contract / Steps / Acceptance** block per subcomponent. `00-INDEX-AND-BLUEPRINT.md`
 is the map and the blueprint; `exam_handout.md` is the brief itself.
 
