@@ -54,9 +54,26 @@ export default {
     );
     child.stdout.pipe(log);
     child.stderr.pipe(log);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // The binary's own start-up line, the same record compose services give `stack.sh`. Read from
+    // the pipe, not the log file: the file stream may not have flushed it yet.
+    let running = null;
+    const watch = (chunk) => {
+      for (const line of String(chunk).split('\n')) {
+        try {
+          const fields = JSON.parse(line).fields;
+          if (fields?.message === 'running') running = fields;
+        } catch {
+          // a partial line; the start-up line is short and arrives whole
+        }
+      }
+    };
+    child.stdout.on('data', watch);
+    child.stderr.on('data', watch);
+    for (let i = 0; i < 100 && !running && child.exitCode === null; i += 1) await new Promise((resolve) => setTimeout(resolve, 100));
     assert(child.exitCode === null, `arl-opg exited ${child.exitCode} at start-up; see opg-binary.log`);
-    return { pid: child.pid, args: '--control-enabled false' };
+    assert(running, 'arl-opg never logged that it was running; see opg-binary.log');
+    ctx.facts.effective = { opg: running.speedup };
+    return { pid: child.pid, args: '--control-enabled false', speedup: running.speedup };
   },
 
   async run(ctx) {

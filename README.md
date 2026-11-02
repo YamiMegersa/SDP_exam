@@ -467,14 +467,51 @@ rebuilt from the stored scan rows — not from the broker or the API backlog.
 
 ## Testing
 
+Four layers, justified in `Planning Docs/51-TESTING.md` §3: unit and integration tests against
+fakes (layers 1–2), contract tests against what the simulator really publishes (layer 3), and drills
+against the real broker with controls enabled and faults injected (layer 4, `Planning Docs/52` §4).
+The first three need nothing running; the drills need Podman and the ARL images loaded.
+
 ```bash
-npm test            # 126 tests across 10 files (vitest)
-npm run test:watch  # no root script — the watcher is `npm --workspace server run test:watch`
+npm test                 # layers 1–3: 141 tests across 11 files (vitest), under 2 s, no broker
+npm run verify           # typecheck + test + build — the one command to run before trusting a change
+npm run test:coverage    # coverage on the modules that carry marks; fails under 80 % (now 86 %)
+npm --workspace server run test:watch
 npm run --workspace server test:typecheck   # typecheck the tests too
 ```
 
 The suite runs against the source, not `dist`, and every database is `:memory:` or a temp file, so
 tests never touch `data/arl.sqlite`.
+
+### The drills (layer 4) — four commands
+
+```bash
+scripts/stack.sh up              # the lab by hand: broker, API, rta, mhe, opg (podman-compose)
+npm run drill -- <name|all>      # one drill, or all eight in sequence (~12.5 min); --record logs the run
+npm run fixtures                 # regenerate the contract fixtures offline; -- --check fails on any change
+scripts/stack.sh down            # remove the containers (the API's volume is kept; `reset` deletes it)
+```
+
+A drill does not need `up`: it brings up its own lab (broker and API, then its own platform on port
+3100 with a fresh database under `.logs/drills/<id>/`, then the simulators), runs its named
+assertions, and tears everything down. It never touches a platform on port 3000, `data/*.sqlite` or
+your `.env` — its environment is set in the process and points only at `localhost`. Each service
+*refuses* a speedup above its ceiling (RTA 50×, MHE 2000×, OPG 500×) rather than clamping, so if you
+run the stack by hand, `unset ARL_SPEEDUP ARL_SEED ARL_START_TIME ARL_SCENARIO` first.
+
+| Drill | What it proves |
+| --- | --- |
+| `storm` | One storm seen by RTA (`wind_stow` engages and releases) and OPG (irradiance collapses and recovers); the ingest loses nothing |
+| `controls-rta` | Six platform refusals that never reach the broker; target → scan → raster → `completed`; a scan cancelled mid-run |
+| `controls-mhe` | Sealing an occupied room raises CO₂ and `air_concentration`; unsealing lowers it; the wellness check completes |
+| `controls-opg` | A night drain: `low_battery` → `supply_shortfall` → generators start, `backup_active`; manual stop; reserve change |
+| `faults` | Raise → escalate → clear as one alert; the operator lifecycle with every refusal and the exact audit trail |
+| `replay` | Replay frames equal the stored rows, in order, with alert events at the cursor and seeks in both directions |
+| `reconcile` | The store matches the ARL API's own backlog per stream, entity and minute — zero mismatches |
+| `controls-disabled` | With OPG's controls off, every command is shown `rejected / controls_disabled` |
+
+All eight passed; each run, with its assertion count, alerts seen, peak message rate, WebSocket queue
+depth and database size, is in `Planning Docs/52-SIMULATOR-HARNESS.md` §4.7.
 
 | File | Covers |
 | --- | --- |
@@ -487,11 +524,14 @@ tests never touch `data/arl.sqlite`.
 | `test/api.test.ts` | supertest against the real Express app: derived endpoint, 400/403/503/409/200 on alert mutations with no audit write on refusal, replay lifecycle, health/services/alerts reads, JSON 404 |
 | `test/config.test.ts` | address normalisation: the hand-out's `http://` broker address, one scheme and one port in the API base URL, empty credentials meaning an anonymous broker, and the fail-fast on a missing or non-numeric variable |
 | `test/design.test.ts` | design-system conformance (`Planning Docs/16` §4.7) as text checks over `web/src`, needing no browser: no hex colour in components or pages, the guide tokens defined once in `index.css`, the 11 px `xs2` step, no threshold literal in a page, the replay badge and the four rate pills, the seven audit columns in order, and every animation in the reduced-motion list |
+| `test/contract.test.ts` | layer 3: the committed `preroll` fixtures of RTA, MHE and OPG through the real `Ingest`, registry and alert engine — every topic routes, every control's documented bounds validate, every alert type the window produced is recorded |
+| `test/commands.test.ts` | the command path with a fake API and publisher: the guards in order and before the API is asked, the API's verdict and its reason, the exact published envelope, a broker failure, ack application, and the timeout broadcast |
 
 These tests have already earned their keep: `?service=` on `/api/derived` was validated but never
 applied until the API test failed, the replay interleave is pinned so the empty-mosaic regression
-cannot return, and the broker-alert reconciliation is pinned so a restart cannot leave a stale
-CRITICAL annunciator behind.
+cannot return, the broker-alert reconciliation is pinned so a restart cannot leave a stale
+CRITICAL annunciator behind, and the drills and command tests found the two bugs in the Progress Log
+entry below.
 
 ---
 
@@ -549,6 +589,27 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 
 Newest first. Each entry: what changed, and why if non-obvious.
 
+- **2026-11-02 — Simulator harness and layers 3–4 of the test strategy (`Planning Docs/51`, `52` §4).**
+  `scripts/stack.sh` (podman-compose: `up`, `infra`, `start`, `down`, `reset`, `status`, `logs`),
+  `scripts/fixtures.mjs` (contract fixtures from each binary's offline `preroll`, byte-identical on
+  regeneration), `scripts/drill.mjs` with eight drills and their scenarios, `contract.test.ts`,
+  `commands.test.ts` and a coverage gate (80 %, now 86 %). All eight drills passed and are recorded in
+  `52` §4.7. What building it found:
+  - *Sequence gaps on every dish (bug, `controls-rta`).* The ingest keyed `seq` by service and stream,
+    not entity, so all 100 dishes shared one counter and interleaved frames were logged as gaps. Now
+    keyed per entity and stream, with a regression test.
+  - *An expired command was broadcast as `queued` (bug, command tests).* `expireCommands` returned the
+    rows as they were before the update, so a browser kept a spinner on a command that was over. It
+    now returns the updated rows (`timeout`).
+  - *Events are not retained.* Starting the simulators before the platform subscribed lost the opening
+    minutes' alerts; a drill now starts broker and API, then the platform, then the simulators.
+  - *Speedup ceilings refuse, they do not clamp.* RTA asked for 1000× exits and compose restarts it in
+    a loop; the runner's preflight now refuses such a drill, and any drill including RTA runs at 50×.
+  - *Compose does not forward `ARL_CONTROL_ENABLED`*, so `controls-disabled` runs OPG's native binary
+    with `--control-enabled false` against the compose broker and API.
+  - *Documented, not built:* cross-service cause hints, MHE incident grouping and futile-control
+    suppression. `51` and `52` previously described drills asserting them; they now say what is
+    asserted.
 - **2026-11-02 — Front end brought into line with the design system (D16, `Planning Docs/16`).** Done in
   layers, each one verified by typecheck, build and test before the next:
   - *Token layer.* The guide's palette is defined once as CSS variables (`--void`, `--panel`,

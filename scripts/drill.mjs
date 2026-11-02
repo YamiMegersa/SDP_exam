@@ -161,6 +161,8 @@ async function runOne(name, args) {
       });
     }
     if (drill.afterStart) await ctx.step('after start', () => drill.afterStart(ctx));
+    // A drill that starts a service itself (not through compose) reports that service's clock here.
+    if (ctx.facts.effective) Object.assign(record.effective, ctx.facts.effective);
 
     if (drill.gate !== false) {
       await ctx.step('topologies retained', async () => {
