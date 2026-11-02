@@ -27,6 +27,16 @@ interface CacheEntry {
 }
 
 /**
+ * Three-way answer for "who is this?", because "not a researcher" and "the directory is down"
+ * must not collapse into the same refusal: the first is the operator's mistake (403), the second
+ * is ours (503).
+ */
+export type IdentityResult =
+  | { status: 'verified'; record: ResearcherRecord }
+  | { status: 'unknown' }
+  | { status: 'unavailable' };
+
+/**
  * Thin, cached client for the ARL's read-only support API.
  *
  * The live deployment allows 20 requests/second (burst 40) and a single concurrent backlog download,
@@ -89,6 +99,34 @@ export class ArlApi {
       const cached = this.store.cachedResearcher(code, Number.MAX_SAFE_INTEGER);
       log.warn(`researcher lookup failed for ${code}: ${describe(error)}`);
       return cached;
+    }
+  }
+
+  /**
+   * GET /v1/researchers/{code} - the identity gate for anything that writes an audit trail.
+   *
+   * Unlike `researcher()`, which falls back to the last-known record so a name still renders when
+   * the directory is down, this fails closed: without an answer from the API nothing is recorded
+   * under that code, and the caller is told whether the code was unknown or unverifiable.
+   */
+  async identify(code: string): Promise<IdentityResult> {
+    try {
+      const record = await this.fetchCached<ResearcherRecord | null>(
+        `researcher:${code}`,
+        this.cfg.researcherCacheTtlMs,
+        async () => {
+          const res = await this.http.get(`/v1/researchers/${encodeURIComponent(code)}`);
+          if (res.status === 404) return null;
+          const normalised = normaliseResearcher(res.data);
+          if (normalised) this.store.cacheResearcher(normalised);
+          return normalised;
+        },
+      );
+      return record ? { status: 'verified', record } : { status: 'unknown' };
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) return { status: 'unknown' };
+      log.warn(`identity check failed for ${code}: ${describe(error)}`);
+      return { status: 'unavailable' };
     }
   }
 

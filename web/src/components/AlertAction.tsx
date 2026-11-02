@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, errorText } from '../lib/api';
+import { api, ApiError, errorText } from '../lib/api';
 import { useResearcher } from '../lib/hooks';
 import { dateTime } from '../lib/format';
 import type { AlertRecord } from '../lib/types';
@@ -8,13 +8,11 @@ import { Button, Field, Modal, Pill, Select, TextInput } from './ui';
 /**
  * Acknowledge / resolve flow.
  *
- * The researcher code is looked up against the ARL API so the operator can see
- * whose name is about to be written into the audit trail. Unlike a control
- * command, the platform does **not** refuse to silence an alarm when the API is
- * unreachable: losing the ability to acknowledge a critical alert because a
- * read-only directory is down would be a worse failure than an unverified note.
- * The console therefore warns and proceeds, and the audit trail records the code
- * as supplied.
+ * An alert transition is an audited statement about who is on duty, so the code is checked
+ * against the ARL researcher directory before it can be submitted, and the server checks it
+ * again before it writes anything (`GET /api/researchers/:code` -> 403 `unknown_researcher`).
+ * The summary line below the field is the operator's own confirmation that the name about to
+ * enter the permanent record is the right one.
  */
 
 const CAUSES = [
@@ -41,7 +39,9 @@ export function AlertActionModal({
   const [code, setCode] = useResearcher();
   const [note, setNote] = useState('');
   const [cause, setCause] = useState(CAUSES[0]!);
-  const [verified, setVerified] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [verified, setVerified] = useState<'idle' | 'checking' | 'valid' | 'invalid' | 'unavailable'>(
+    'idle',
+  );
   const [name, setName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +52,9 @@ export function AlertActionModal({
     setError(null);
     setVerified('idle');
     setName(null);
-  }, [alert, mode]);
+    // Keyed on the identity of the alert rather than the object, which is replaced on every
+    // refetch of the board.
+  }, [alert?.alert_id, mode]);
 
   useEffect(() => {
     const candidate = code.trim().toLowerCase();
@@ -71,17 +73,22 @@ export function AlertActionModal({
           setName(researcher.name);
           setVerified('valid');
         })
-        .catch(() => {
+        .catch((cause: unknown) => {
           if (cancelled) return;
           setName(null);
-          setVerified('invalid');
+          // A 404 is the directory answering "no such code". Anything else means we could not
+          // ask, which is also a refusal, but the operator deserves to know which it was.
+          const answered =
+            cause instanceof ApiError && (cause.status === 404 || cause.status === 400);
+          setVerified(answered ? 'invalid' : 'unavailable');
         });
     }, 350);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [code]);
+    // Re-checks when the dialog opens on a saved code, not only when it is edited.
+  }, [code, alert?.alert_id, mode]);
 
   if (!alert || !mode) return null;
 
@@ -108,8 +115,12 @@ export function AlertActionModal({
   };
 
   const alreadyAcknowledged = alert.ack_ts !== null;
+  // No verified identity, no transition: the audit trail is only as trustworthy as the gate in
+  // front of it. The server re-checks, so a code revoked mid-session is still refused there.
   const canSubmit =
-    code.trim().length >= 3 && (mode === 'acknowledge' || note.trim().length >= 3) && !busy;
+    verified === 'valid' &&
+    (mode === 'acknowledge' || note.trim().length >= 3) &&
+    !busy;
 
   return (
     <Modal
@@ -163,7 +174,9 @@ export function AlertActionModal({
                 ? name ?? 'verified'
                 : verified === 'invalid'
                   ? 'not in directory'
-                  : 'ARL directory'
+                  : verified === 'unavailable'
+                    ? 'directory unreachable'
+                    : 'ARL directory'
           }
         >
           <TextInput
@@ -176,8 +189,16 @@ export function AlertActionModal({
         </Field>
 
         {verified === 'invalid' ? (
+          <p className="-mt-2 text-2xs text-crit">
+            No researcher with that code, so the alert cannot be signed off. Check the code or use
+            another operator's.
+          </p>
+        ) : null}
+
+        {verified === 'unavailable' ? (
           <p className="-mt-2 text-2xs text-warn">
-            That code is not in the ARL researcher directory. It will still be recorded, flagged as unverified.
+            The ARL directory could not be reached, so the code cannot be verified. Retrying
+            shortly is the only way through: an unsigned transition is not recorded.
           </p>
         ) : null}
 

@@ -193,6 +193,23 @@ export function createApp(deps: AppDeps): express.Express {
 
   // ------------------------------------------------------------------ alerts
 
+  /**
+   * The audit trail names a person, so the code is checked against the ARL directory before any
+   * transition is written. `isWellFormedCode` only proves the string could be a code; this proves
+   * it is one, and keeps an unverifiable directory from silently becoming a way in.
+   */
+  const identify = async (
+    researcher: string,
+  ): Promise<{ ok: true } | { ok: false; status: number; error: string }> => {
+    const identity = await deps.api.identify(researcher);
+    if (identity.status === 'verified') return { ok: true };
+    if (identity.status === 'unavailable') {
+      log.warn(`alert mutation refused: directory unreachable while checking ${researcher}`);
+      return { ok: false, status: 503, error: 'api_unavailable' };
+    }
+    return { ok: false, status: 403, error: 'unknown_researcher' };
+  };
+
   api.get('/alerts', (req, res) => {
     const status = String(req.query.status ?? 'open') as
       | 'open'
@@ -220,9 +237,11 @@ export function createApp(deps: AppDeps): express.Express {
     });
   });
 
-  api.post('/alerts/:id/acknowledge', (req, res) => {
+  api.post('/alerts/:id/acknowledge', async (req, res) => {
     const researcher = String(req.body?.researcher ?? '').toLowerCase().trim();
     if (!isWellFormedCode(researcher)) return res.status(400).json({ error: 'malformed' });
+    const identity = await identify(researcher);
+    if (!identity.ok) return res.status(identity.status).json({ error: identity.error });
     const result = deps.store.acknowledgeAlert({
       alertId: req.params.id,
       researcher,
@@ -234,13 +253,15 @@ export function createApp(deps: AppDeps): express.Express {
     res.json({ alert: result.alert });
   });
 
-  api.post('/alerts/:id/resolve', (req, res) => {
+  api.post('/alerts/:id/resolve', async (req, res) => {
     const researcher = String(req.body?.researcher ?? '').toLowerCase().trim();
     if (!isWellFormedCode(researcher)) return res.status(400).json({ error: 'malformed' });
     const resolution = String(req.body?.resolution ?? '').trim();
     if (resolution.length < 3 || resolution.length > 500) {
       return res.status(400).json({ error: 'invalid_resolution', detail: '3 to 500 characters' });
     }
+    const identity = await identify(researcher);
+    if (!identity.ok) return res.status(identity.status).json({ error: identity.error });
     const result = deps.store.resolveAlert({
       alertId: req.params.id,
       researcher,
