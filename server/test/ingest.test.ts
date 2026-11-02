@@ -121,6 +121,19 @@ describe('sequence-gap tracking', () => {
     });
   });
 
+  it('keeps one counter per topic, so interleaved dishes are not gaps', () => {
+    deliver('arl/rta/$topology', RTA_TOPOLOGY);
+    // Found by the controls-rta drill: dishes that were not scanning kept counting while the
+    // others paused, and a single per-stream counter read that as missed samples.
+    for (const [dish, seq] of [['dish-001', 1], ['dish-002', 1], ['dish-002', 2], ['dish-002', 3], ['dish-001', 2], ['dish-002', 4]] as const) {
+      deliver(`arl/rta/${dish}/telemetry/normal`, envelope({ seq, ts: 1_000 + seq, status: true }));
+    }
+    flush();
+
+    expect(countRows(store, 'ingest_gap')).toBe(0);
+    expect(ingest.counters.gaps).toBe(0);
+  });
+
   it('does not track gaps on backfilled samples', () => {
     deliver('arl/rta/$topology', RTA_TOPOLOGY);
     deliver('arl/rta/dish-001/telemetry/normal', envelope({ seq: 1, backfill: true, status: true }));

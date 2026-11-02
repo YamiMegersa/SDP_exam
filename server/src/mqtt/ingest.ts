@@ -298,7 +298,8 @@ export class Ingest {
     });
 
     if (!backfill) {
-      const gap = this.trackSeq(`${service}/${stream}`, seq, service, entity, stream, ts);
+      // `seq` is per topic, so a hundred dishes on one stream are a hundred counters, not one.
+      const gap = this.trackSeq(`${service}/${entity}/${stream}`, seq, service, entity, stream, ts);
       if (gap) this.pending.gaps.push(gap);
     }
 
