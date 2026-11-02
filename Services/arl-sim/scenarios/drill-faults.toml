@@ -1,0 +1,44 @@
+# Drill `faults` (Planning Docs/52 §4.3.3): RTA and MHE faults in one file, because a run loads
+# exactly one scenario. Every event ends by `duration` or by an explicit `repair`.
+
+# ---- RTA: one dish overheats past both temperature limits, then recovers.
+# The dish climbs ~1 K per simulated minute from ~291 K, so 333 K (warning) is ~+47 min and
+# 343 K (critical) ~+57 min; 70 minutes holds it past both for their 120 s windows.
+[[event]]
+at = "+00:05:00"
+service = "rta"
+entity = "dish-042"
+fault = "overheat"
+duration = "01:10:00"
+params = { peak_k = 345.0 }
+
+# ---- RTA: one dish stops reporting until a technician repairs it
+[[event]]
+at = "+00:05:00"
+service = "rta"
+entity = "dish-017"
+fault = "comms_loss"
+
+[[event]]
+at = "+00:20:00"
+service = "rta"
+entity = "dish-017"
+fault = "repair"
+
+# ---- MHE: a quarters heater fails, and an occupied quarters loses its ventilation.
+# Written for a 22:00 start: the crew are asleep in their quarters, so the sealed-in CO2 builds
+# (common is empty by then and never crosses 1500 ppm). Six hours because a heater fault drifts
+# the room ~1 K/h and room_condition needs 290 K for 15 min; both clear after the faults end.
+[[event]]
+at = "+00:05:00"
+service = "mhe"
+entity = "quarters-2"
+fault = "heater_fault"
+duration = "06:00:00"
+
+[[event]]
+at = "+00:05:00"
+service = "mhe"
+entity = "quarters-3"
+fault = "ventilation_fault"
+duration = "06:00:00"

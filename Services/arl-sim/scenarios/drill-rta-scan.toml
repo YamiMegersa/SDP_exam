@@ -1,0 +1,2 @@
+# Drill `controls-rta` (Planning Docs/52 §4.3.3): deliberately empty. The scan, its target and its
+# cancellation are caused by commands, so nothing else may be in the picture.

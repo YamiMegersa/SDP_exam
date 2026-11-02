@@ -1,0 +1,10 @@
+# Drill `storm` (Planning Docs/52 §4.3.3): one weather event, nothing else, so every alert in the
+# window has one cause. Run with all three services at 50x and a fixed start time (late morning,
+# so the solar array has something to lose).
+
+[[event]]
+at = "+00:20:00"
+service = "env"
+fault = "storm"
+duration = "01:30:00"
+params = { gust_ms = 26.0, speed_ms = 8.0, rain_mm_h = 30.0 }

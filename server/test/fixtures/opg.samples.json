@@ -1,0 +1,304 @@
+{
+  "source": {
+    "service": "opg",
+    "seed": 1,
+    "from": "2027-03-02T22:00:00+02:00",
+    "to": "2027-03-03T00:00:00+02:00",
+    "scenario": "drill-opg-reserve.toml",
+    "messages": 495
+  },
+  "telemetry": {
+    "batteries/telemetry/power": [
+      {
+        "topic": "arl/opg/batteries/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "batteries",
+          "state_of_charge_pct": 69.9,
+          "battery_power_w": -311089,
+          "battery_temperature_k": 291.49,
+          "battery_health_pct": 94.5
+        }
+      },
+      {
+        "topic": "arl/opg/batteries/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804024740000,
+          "seq": 119,
+          "entity": "batteries",
+          "state_of_charge_pct": 20,
+          "battery_power_w": 0,
+          "battery_temperature_k": 290.88,
+          "battery_health_pct": 94.5
+        }
+      }
+    ],
+    "diesel/telemetry/power": [
+      {
+        "topic": "arl/opg/diesel/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "diesel",
+          "fuel_level_pct": 80,
+          "power_output_w": 0,
+          "generator_status": "off",
+          "runtime_h": 4424.74
+        }
+      },
+      {
+        "topic": "arl/opg/diesel/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804020660000,
+          "seq": 51,
+          "entity": "diesel",
+          "fuel_level_pct": 80,
+          "power_output_w": 0,
+          "generator_status": "starting",
+          "runtime_h": 4424.74
+        }
+      },
+      {
+        "topic": "arl/opg/diesel/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804024740000,
+          "seq": 119,
+          "entity": "diesel",
+          "fuel_level_pct": 79.7,
+          "power_output_w": 176198,
+          "generator_status": "running",
+          "runtime_h": 4425.87
+        }
+      }
+    ],
+    "global/telemetry/power": [
+      {
+        "topic": "arl/opg/global/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "global",
+          "total_generation_w": 0,
+          "total_load_w": 311089,
+          "supply_mode": "battery"
+        }
+      },
+      {
+        "topic": "arl/opg/global/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804020720000,
+          "seq": 52,
+          "entity": "global",
+          "total_generation_w": 297353,
+          "total_load_w": 297353,
+          "supply_mode": "diesel"
+        }
+      },
+      {
+        "topic": "arl/opg/global/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804024740000,
+          "seq": 119,
+          "entity": "global",
+          "total_generation_w": 176198,
+          "total_load_w": 176198,
+          "supply_mode": "diesel"
+        }
+      }
+    ],
+    "solar/telemetry/power": [
+      {
+        "topic": "arl/opg/solar/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "solar",
+          "power_output_w": 0,
+          "irradiance_wm2": 0,
+          "panel_temperature_k": 291.39,
+          "inverter_status": "online"
+        }
+      },
+      {
+        "topic": "arl/opg/solar/telemetry/power",
+        "payload": {
+          "v": 1,
+          "ts": 1804024740000,
+          "seq": 119,
+          "entity": "solar",
+          "power_output_w": 0,
+          "irradiance_wm2": 0,
+          "panel_temperature_k": 289.29,
+          "inverter_status": "online"
+        }
+      }
+    ]
+  },
+  "state": {
+    "active_alerts": {
+      "topic": "arl/opg/global/state/active_alerts",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "active_alerts",
+        "value": []
+      }
+    },
+    "enabled": {
+      "topic": "arl/opg/solar/state/enabled",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "solar",
+        "item": "enabled",
+        "value": true
+      }
+    },
+    "generation_priority": {
+      "topic": "arl/opg/global/state/generation_priority",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "generation_priority",
+        "value": "solar_first"
+      }
+    },
+    "load_shed": {
+      "topic": "arl/opg/global/state/load_shed",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "load_shed",
+        "value": false
+      }
+    },
+    "online": {
+      "topic": "arl/opg/global/state/online",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "online",
+        "value": true
+      }
+    },
+    "reserve_pct": {
+      "topic": "arl/opg/batteries/state/reserve_pct",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "batteries",
+        "item": "reserve_pct",
+        "value": 20
+      }
+    }
+  },
+  "events": {
+    "alert:backup_active:info:raised": {
+      "topic": "arl/opg/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804020720000,
+        "seq": 2,
+        "entity": "global",
+        "alert_id": "opg-backup_active-global-0001",
+        "type": "backup_active",
+        "severity": "info",
+        "state": "raised",
+        "value": null,
+        "limit": null,
+        "unit": null,
+        "message": "Diesel generators are supplying power",
+        "metadata": {
+          "supply_mode": "diesel"
+        }
+      }
+    },
+    "alert:low_battery:warning:raised": {
+      "topic": "arl/opg/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804017720000,
+        "seq": 0,
+        "entity": "batteries",
+        "alert_id": "opg-low_battery-batteries-0001",
+        "type": "low_battery",
+        "severity": "warning",
+        "state": "raised",
+        "value": 24.863,
+        "limit": 30,
+        "unit": "%",
+        "message": "Battery state of charge low",
+        "metadata": {
+          "reserve_pct": 20,
+          "supply_mode": "battery"
+        }
+      }
+    },
+    "alert:supply_shortfall:critical:cleared": {
+      "topic": "arl/opg/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804020960000,
+        "seq": 3,
+        "entity": "global",
+        "alert_id": "opg-supply_shortfall-global-0001",
+        "type": "supply_shortfall",
+        "severity": "critical",
+        "state": "cleared",
+        "value": null,
+        "limit": null,
+        "unit": null,
+        "message": "Load exceeds the available generation",
+        "metadata": {
+          "supply_mode": "battery",
+          "unserved_w": 165811
+        }
+      }
+    },
+    "alert:supply_shortfall:critical:raised": {
+      "topic": "arl/opg/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804020660000,
+        "seq": 1,
+        "entity": "global",
+        "alert_id": "opg-supply_shortfall-global-0001",
+        "type": "supply_shortfall",
+        "severity": "critical",
+        "state": "raised",
+        "value": null,
+        "limit": null,
+        "unit": null,
+        "message": "Load exceeds the available generation",
+        "metadata": {
+          "supply_mode": "battery",
+          "unserved_w": 165811
+        }
+      }
+    }
+  }
+}

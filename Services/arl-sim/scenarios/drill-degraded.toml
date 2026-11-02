@@ -1,0 +1,26 @@
+# Planning Docs/52 §4.3.3: the OPG unrecoverable path, solar_underperformance and generator_fault
+# together. Both last until the end of the run.
+
+[[event]]
+at = "+00:10:00"
+service = "opg"
+entity = "solar"
+fault = "inverter_fault"
+
+[[event]]
+at = "+00:10:00"
+service = "opg"
+entity = "diesel"
+fault = "generator_fail_start"
+
+[[event]]
+at = "+04:00:00"
+service = "opg"
+entity = "solar"
+fault = "repair"
+
+[[event]]
+at = "+04:00:00"
+service = "opg"
+entity = "diesel"
+fault = "repair"

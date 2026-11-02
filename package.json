@@ -14,7 +14,11 @@
     "build": "npm --workspace web run build && npm --workspace server run build",
     "start": "npm --workspace server run start",
     "test": "npm --workspace server run test",
-    "typecheck": "npm --workspace server run typecheck && npm --workspace web run typecheck"
+    "test:coverage": "npm --workspace server run test:coverage",
+    "typecheck": "npm --workspace server run typecheck && npm --workspace web run typecheck",
+    "verify": "npm run typecheck && npm test && npm run build",
+    "fixtures": "node scripts/fixtures.mjs",
+    "drill": "node scripts/drill.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

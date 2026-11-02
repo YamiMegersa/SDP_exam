@@ -1,0 +1,249 @@
+{
+  "v": 1,
+  "service": "opg",
+  "version": "0.1.0",
+  "entities": [
+    {
+      "id": "global",
+      "kind": "service"
+    },
+    {
+      "id": "solar",
+      "kind": "array"
+    },
+    {
+      "id": "batteries",
+      "kind": "bank"
+    },
+    {
+      "id": "diesel",
+      "kind": "generators"
+    }
+  ],
+  "streams": [
+    {
+      "topic": "arl/opg/global/telemetry/power",
+      "entity_kinds": [
+        "service"
+      ],
+      "period_s": 60,
+      "fields": [
+        {
+          "key": "total_generation_w",
+          "type": "integer",
+          "unit": "W"
+        },
+        {
+          "key": "total_load_w",
+          "type": "integer",
+          "unit": "W"
+        },
+        {
+          "key": "supply_mode",
+          "type": "enum",
+          "values": [
+            "solar",
+            "battery",
+            "diesel",
+            "mixed"
+          ]
+        }
+      ]
+    },
+    {
+      "topic": "arl/opg/solar/telemetry/power",
+      "entity_kinds": [
+        "array"
+      ],
+      "period_s": 60,
+      "fields": [
+        {
+          "key": "power_output_w",
+          "type": "integer",
+          "unit": "W"
+        },
+        {
+          "key": "irradiance_wm2",
+          "type": "integer",
+          "unit": "W/m2"
+        },
+        {
+          "key": "panel_temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "inverter_status",
+          "type": "enum",
+          "values": [
+            "online",
+            "offline",
+            "fault"
+          ]
+        }
+      ]
+    },
+    {
+      "topic": "arl/opg/batteries/telemetry/power",
+      "entity_kinds": [
+        "bank"
+      ],
+      "period_s": 60,
+      "fields": [
+        {
+          "key": "state_of_charge_pct",
+          "type": "float",
+          "unit": "%"
+        },
+        {
+          "key": "battery_power_w",
+          "type": "integer",
+          "unit": "W"
+        },
+        {
+          "key": "battery_temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "battery_health_pct",
+          "type": "float",
+          "unit": "%"
+        }
+      ]
+    },
+    {
+      "topic": "arl/opg/diesel/telemetry/power",
+      "entity_kinds": [
+        "generators"
+      ],
+      "period_s": 60,
+      "fields": [
+        {
+          "key": "fuel_level_pct",
+          "type": "float",
+          "unit": "%"
+        },
+        {
+          "key": "power_output_w",
+          "type": "integer",
+          "unit": "W"
+        },
+        {
+          "key": "generator_status",
+          "type": "enum",
+          "values": [
+            "off",
+            "starting",
+            "running",
+            "fault"
+          ]
+        },
+        {
+          "key": "runtime_h",
+          "type": "float",
+          "unit": "h"
+        }
+      ]
+    }
+  ],
+  "state": [
+    {
+      "topic": "arl/opg/global/state/generation_priority",
+      "type": "enum"
+    },
+    {
+      "topic": "arl/opg/global/state/load_shed",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/opg/solar/state/enabled",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/opg/batteries/state/reserve_pct",
+      "type": "float",
+      "unit": "%"
+    },
+    {
+      "topic": "arl/opg/global/state/online",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/opg/global/state/active_alerts",
+      "type": "array"
+    }
+  ],
+  "events": [
+    {
+      "topic": "arl/opg/events/alert"
+    },
+    {
+      "topic": "arl/opg/events/refuel"
+    }
+  ],
+  "controls": [
+    {
+      "topic": "arl/opg/cmd/global/generation_priority",
+      "entity_kinds": [
+        "service"
+      ],
+      "value": {
+        "type": "enum",
+        "values": [
+          "solar_first",
+          "battery_first",
+          "diesel_first"
+        ]
+      }
+    },
+    {
+      "topic": "arl/opg/cmd/global/load_shed",
+      "entity_kinds": [
+        "service"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/opg/cmd/solar/enable_solar_array",
+      "entity_kinds": [
+        "array"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/opg/cmd/batteries/battery_reserve",
+      "entity_kinds": [
+        "bank"
+      ],
+      "value": {
+        "type": "float",
+        "min": 10,
+        "max": 80,
+        "unit": "%"
+      }
+    },
+    {
+      "topic": "arl/opg/cmd/diesel/start_generator",
+      "entity_kinds": [
+        "generators"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/opg/cmd/diesel/stop_generator",
+      "entity_kinds": [
+        "generators"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    }
+  ]
+}

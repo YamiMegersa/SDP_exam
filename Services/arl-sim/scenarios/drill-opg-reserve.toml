@@ -1,0 +1,9 @@
+# Drill `controls-opg` (Planning Docs/52 §4.3.3): drop the bank to 25 % at night, so the platform
+# sees low_battery, the reserve crossing and the automatic generator start in that order.
+
+[[event]]
+at = "+00:02:00"
+service = "opg"
+entity = "batteries"
+fault = "set_state"
+params = { soc_pct = 25.0 }

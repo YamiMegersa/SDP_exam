@@ -1,0 +1,13 @@
+# Planning Docs/52 §4.3.3: a fuel leak, for the low_fuel projection arithmetic.
+
+[[event]]
+at = "+00:05:00"
+service = "opg"
+entity = "diesel"
+fault = "fuel_leak"
+
+[[event]]
+at = "+04:00:00"
+service = "opg"
+entity = "diesel"
+fault = "repair"

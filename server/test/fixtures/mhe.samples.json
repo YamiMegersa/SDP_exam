@@ -1,0 +1,426 @@
+{
+  "source": {
+    "service": "mhe",
+    "seed": 1,
+    "from": "2027-03-02T22:00:00+02:00",
+    "to": "2027-03-03T06:00:00+02:00",
+    "scenario": "drill-faults.toml",
+    "messages": 3702
+  },
+  "telemetry": {
+    "+/telemetry/environment": [
+      {
+        "topic": "arl/mhe/quarters-1/telemetry/environment",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "quarters-1",
+          "temperature_k": 294.14,
+          "humidity_pct": 45.2,
+          "oxygen_ppm": 208940,
+          "co2_ppm": 614,
+          "pressure_kpa": 101.3,
+          "lighting_lux": 200,
+          "ventilation_m3h": 40,
+          "crew_count": 1
+        }
+      },
+      {
+        "topic": "arl/mhe/airlock/telemetry/environment",
+        "payload": {
+          "v": 1,
+          "ts": 1804046100000,
+          "seq": 95,
+          "entity": "airlock",
+          "temperature_k": 294.12,
+          "humidity_pct": 45,
+          "oxygen_ppm": 209040,
+          "co2_ppm": 418,
+          "pressure_kpa": 101.3,
+          "lighting_lux": 5,
+          "ventilation_m3h": 55,
+          "crew_count": 0
+        }
+      }
+    ],
+    "+/telemetry/vitals": [
+      {
+        "topic": "arl/mhe/crew-1/telemetry/vitals",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "crew-1",
+          "heart_rate_bpm": 63,
+          "body_temperature_k": 310.1,
+          "respiratory_rate_bpm": 15,
+          "spo2_pct": 98.5,
+          "movement": 0.11,
+          "location": "quarters-1"
+        }
+      },
+      {
+        "topic": "arl/mhe/crew-2/telemetry/vitals",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "crew-2",
+          "heart_rate_bpm": 74,
+          "body_temperature_k": 310.16,
+          "respiratory_rate_bpm": 16,
+          "spo2_pct": 97.4,
+          "movement": 0.23,
+          "location": "quarters-2"
+        }
+      },
+      {
+        "topic": "arl/mhe/crew-5/telemetry/vitals",
+        "payload": {
+          "v": 1,
+          "ts": 1804046340000,
+          "seq": 479,
+          "entity": "crew-5",
+          "heart_rate_bpm": 54,
+          "body_temperature_k": 309.8,
+          "respiratory_rate_bpm": 14,
+          "spo2_pct": 97,
+          "movement": 0.04,
+          "location": "quarters-5"
+        }
+      }
+    ],
+    "airlock/telemetry/airlock": [
+      {
+        "topic": "arl/mhe/airlock/telemetry/airlock",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "airlock",
+          "airlock_state": "pressurised",
+          "eva_in_progress": false,
+          "inner_door": "closed",
+          "outer_door": "closed"
+        }
+      },
+      {
+        "topic": "arl/mhe/airlock/telemetry/airlock",
+        "payload": {
+          "v": 1,
+          "ts": 1804046100000,
+          "seq": 95,
+          "entity": "airlock",
+          "airlock_state": "pressurised",
+          "eva_in_progress": false,
+          "inner_door": "closed",
+          "outer_door": "closed"
+        }
+      }
+    ],
+    "global/telemetry/habitat": [
+      {
+        "topic": "arl/mhe/global/telemetry/habitat",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "global",
+          "mission_day": 1,
+          "power_w": 17702
+        }
+      },
+      {
+        "topic": "arl/mhe/global/telemetry/habitat",
+        "payload": {
+          "v": 1,
+          "ts": 1804046100000,
+          "seq": 95,
+          "entity": "global",
+          "mission_day": 2,
+          "power_w": 15609
+        }
+      }
+    ],
+    "hydroponics/telemetry/hydroponics": [
+      {
+        "topic": "arl/mhe/hydroponics/telemetry/hydroponics",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "hydroponics",
+          "estimated_yield_kg": 12,
+          "growth_stage": "germination",
+          "nutrient_ec_mscm": 1.8,
+          "water_level_l": 360,
+          "water_ph": 6
+        }
+      },
+      {
+        "topic": "arl/mhe/hydroponics/telemetry/hydroponics",
+        "payload": {
+          "v": 1,
+          "ts": 1804046100000,
+          "seq": 95,
+          "entity": "hydroponics",
+          "estimated_yield_kg": 12,
+          "growth_stage": "germination",
+          "nutrient_ec_mscm": 1.82,
+          "water_level_l": 352.8,
+          "water_ph": 5.93
+        }
+      }
+    ],
+    "lab/telemetry/equipment": [
+      {
+        "topic": "arl/mhe/lab/telemetry/equipment",
+        "payload": {
+          "v": 1,
+          "ts": 1804017600000,
+          "seq": 0,
+          "entity": "lab",
+          "equipment_status": "ok"
+        }
+      },
+      {
+        "topic": "arl/mhe/lab/telemetry/equipment",
+        "payload": {
+          "v": 1,
+          "ts": 1804046100000,
+          "seq": 95,
+          "entity": "lab",
+          "equipment_status": "ok"
+        }
+      }
+    ]
+  },
+  "state": {
+    "active_alerts": {
+      "topic": "arl/mhe/global/state/active_alerts",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "active_alerts",
+        "value": []
+      }
+    },
+    "environmental_systems": {
+      "topic": "arl/mhe/quarters-1/state/environmental_systems",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "quarters-1",
+        "item": "environmental_systems",
+        "value": true
+      }
+    },
+    "irrigation_schedule": {
+      "topic": "arl/mhe/hydroponics/state/irrigation_schedule",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "hydroponics",
+        "item": "irrigation_schedule",
+        "value": {
+          "end": "06:20",
+          "start": "06:00",
+          "volume_l": 40
+        }
+      }
+    },
+    "lighting_schedule": {
+      "topic": "arl/mhe/quarters-1/state/lighting_schedule",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "quarters-1",
+        "item": "lighting_schedule",
+        "value": {
+          "end": "22:30",
+          "level_lux": 200,
+          "start": "06:30"
+        }
+      }
+    },
+    "mission_state": {
+      "topic": "arl/mhe/global/state/mission_state",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "mission_state",
+        "value": "running"
+      }
+    },
+    "online": {
+      "topic": "arl/mhe/global/state/online",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "online",
+        "value": true
+      }
+    },
+    "sealed": {
+      "topic": "arl/mhe/quarters-1/state/sealed",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "quarters-1",
+        "item": "sealed",
+        "value": false
+      }
+    },
+    "setpoints": {
+      "topic": "arl/mhe/quarters-1/state/setpoints",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "quarters-1",
+        "item": "setpoints",
+        "value": {
+          "humidity_pct": 45,
+          "temperature_k": 294.15,
+          "ventilation_m3h": 60
+        }
+      }
+    },
+    "subsystems": {
+      "topic": "arl/mhe/global/state/subsystems",
+      "retain": true,
+      "payload": {
+        "v": 1,
+        "ts": 1804017600000,
+        "entity": "global",
+        "item": "subsystems",
+        "value": {
+          "airlock": "ok",
+          "comms": "ok",
+          "heating": "ok",
+          "hydroponics": "ok",
+          "power_distribution": "ok",
+          "ventilation": "ok",
+          "water": "ok"
+        }
+      }
+    }
+  },
+  "events": {
+    "alert:air_concentration:critical:cleared": {
+      "topic": "arl/mhe/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804042740000,
+        "seq": 4,
+        "entity": "quarters-3",
+        "alert_id": "mhe-air_concentration-quarters-3-0001",
+        "type": "air_concentration",
+        "severity": "critical",
+        "state": "cleared",
+        "value": null,
+        "limit": 2500,
+        "unit": "ppm",
+        "message": "CO2 above the limit",
+        "metadata": {
+          "crew_count": 1,
+          "sealed": false
+        }
+      }
+    },
+    "alert:air_concentration:critical:raised": {
+      "topic": "arl/mhe/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804023420000,
+        "seq": 1,
+        "entity": "quarters-3",
+        "alert_id": "mhe-air_concentration-quarters-3-0001",
+        "type": "air_concentration",
+        "severity": "critical",
+        "state": "raised",
+        "value": 2518.606,
+        "limit": 2500,
+        "unit": "ppm",
+        "message": "CO2 above the limit",
+        "metadata": {
+          "crew_count": 1,
+          "sealed": false
+        }
+      }
+    },
+    "alert:air_concentration:warning:raised": {
+      "topic": "arl/mhe/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804021020000,
+        "seq": 0,
+        "entity": "quarters-3",
+        "alert_id": "mhe-air_concentration-quarters-3-0001",
+        "type": "air_concentration",
+        "severity": "warning",
+        "state": "raised",
+        "value": 1718.606,
+        "limit": 1500,
+        "unit": "ppm",
+        "message": "CO2 above the limit",
+        "metadata": {
+          "crew_count": 1,
+          "sealed": false
+        }
+      }
+    },
+    "alert:room_condition:warning:cleared": {
+      "topic": "arl/mhe/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804040280000,
+        "seq": 3,
+        "entity": "quarters-2",
+        "alert_id": "mhe-room_condition-quarters-2-0001",
+        "type": "room_condition",
+        "severity": "warning",
+        "state": "cleared",
+        "value": null,
+        "limit": 290,
+        "unit": "K",
+        "message": "Room temperature outside limits",
+        "metadata": {}
+      }
+    },
+    "alert:room_condition:warning:raised": {
+      "topic": "arl/mhe/events/alert",
+      "retain": false,
+      "payload": {
+        "v": 1,
+        "ts": 1804031520000,
+        "seq": 2,
+        "entity": "quarters-2",
+        "alert_id": "mhe-room_condition-quarters-2-0001",
+        "type": "room_condition",
+        "severity": "warning",
+        "state": "raised",
+        "value": 289.847,
+        "limit": 290,
+        "unit": "K",
+        "message": "Room temperature outside limits",
+        "metadata": {}
+      }
+    }
+  }
+}

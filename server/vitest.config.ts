@@ -11,5 +11,13 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    // Only the modules that carry marks (51 §4): a global figure would be met by untested glue.
+    coverage: {
+      provider: 'v8',
+      include: ['src/alerts/**', 'src/topology/**', 'src/db/**', 'src/mqtt/**', 'src/commands/**'],
+      reporter: ['text-summary', 'text'],
+      reportsDirectory: '../.logs/coverage',
+      thresholds: { lines: 80, functions: 80 },
+    },
   },
 });

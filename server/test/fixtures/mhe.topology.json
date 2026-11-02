@@ -1,0 +1,453 @@
+{
+  "v": 1,
+  "service": "mhe",
+  "version": "0.1.0",
+  "entities": [
+    {
+      "id": "quarters-1",
+      "kind": "room"
+    },
+    {
+      "id": "quarters-2",
+      "kind": "room"
+    },
+    {
+      "id": "quarters-3",
+      "kind": "room"
+    },
+    {
+      "id": "quarters-4",
+      "kind": "room"
+    },
+    {
+      "id": "quarters-5",
+      "kind": "room"
+    },
+    {
+      "id": "common",
+      "kind": "room"
+    },
+    {
+      "id": "lab",
+      "kind": "room"
+    },
+    {
+      "id": "hydroponics",
+      "kind": "room"
+    },
+    {
+      "id": "airlock",
+      "kind": "room"
+    },
+    {
+      "id": "crew-1",
+      "kind": "crew"
+    },
+    {
+      "id": "crew-2",
+      "kind": "crew"
+    },
+    {
+      "id": "crew-3",
+      "kind": "crew"
+    },
+    {
+      "id": "crew-4",
+      "kind": "crew"
+    },
+    {
+      "id": "crew-5",
+      "kind": "crew"
+    },
+    {
+      "id": "global",
+      "kind": "service"
+    }
+  ],
+  "streams": [
+    {
+      "topic": "arl/mhe/+/telemetry/environment",
+      "entity_kinds": [
+        "room"
+      ],
+      "period_s": 300,
+      "fields": [
+        {
+          "key": "temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "humidity_pct",
+          "type": "float",
+          "unit": "%"
+        },
+        {
+          "key": "oxygen_ppm",
+          "type": "integer",
+          "unit": "ppm"
+        },
+        {
+          "key": "co2_ppm",
+          "type": "integer",
+          "unit": "ppm"
+        },
+        {
+          "key": "pressure_kpa",
+          "type": "float",
+          "unit": "kPa"
+        },
+        {
+          "key": "lighting_lux",
+          "type": "integer",
+          "unit": "lx"
+        },
+        {
+          "key": "ventilation_m3h",
+          "type": "integer",
+          "unit": "m3/h"
+        },
+        {
+          "key": "crew_count",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "topic": "arl/mhe/hydroponics/telemetry/hydroponics",
+      "entity_kinds": [
+        "room"
+      ],
+      "period_s": 300,
+      "fields": [
+        {
+          "key": "water_level_l",
+          "type": "float",
+          "unit": "L"
+        },
+        {
+          "key": "nutrient_ec_mscm",
+          "type": "float",
+          "unit": "mS/cm"
+        },
+        {
+          "key": "water_ph",
+          "type": "float"
+        },
+        {
+          "key": "growth_stage",
+          "type": "enum",
+          "values": [
+            "germination",
+            "vegetative",
+            "flowering",
+            "harvest"
+          ]
+        },
+        {
+          "key": "estimated_yield_kg",
+          "type": "float",
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "topic": "arl/mhe/airlock/telemetry/airlock",
+      "entity_kinds": [
+        "room"
+      ],
+      "period_s": 300,
+      "fields": [
+        {
+          "key": "airlock_state",
+          "type": "enum",
+          "values": [
+            "pressurised",
+            "cycling",
+            "depressurised"
+          ]
+        },
+        {
+          "key": "inner_door",
+          "type": "enum",
+          "values": [
+            "open",
+            "closed"
+          ]
+        },
+        {
+          "key": "outer_door",
+          "type": "enum",
+          "values": [
+            "open",
+            "closed"
+          ]
+        },
+        {
+          "key": "eva_in_progress",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "topic": "arl/mhe/lab/telemetry/equipment",
+      "entity_kinds": [
+        "room"
+      ],
+      "period_s": 300,
+      "fields": [
+        {
+          "key": "equipment_status",
+          "type": "enum",
+          "values": [
+            "ok",
+            "degraded",
+            "fault"
+          ]
+        }
+      ]
+    },
+    {
+      "topic": "arl/mhe/+/telemetry/vitals",
+      "entity_kinds": [
+        "crew"
+      ],
+      "period_s": 60,
+      "fields": [
+        {
+          "key": "heart_rate_bpm",
+          "type": "integer",
+          "unit": "bpm"
+        },
+        {
+          "key": "body_temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "respiratory_rate_bpm",
+          "type": "integer",
+          "unit": "1/min"
+        },
+        {
+          "key": "spo2_pct",
+          "type": "float",
+          "unit": "%"
+        },
+        {
+          "key": "movement",
+          "type": "float"
+        },
+        {
+          "key": "location",
+          "type": "enum",
+          "values": [
+            "quarters-1",
+            "quarters-2",
+            "quarters-3",
+            "quarters-4",
+            "quarters-5",
+            "common",
+            "lab",
+            "hydroponics",
+            "airlock",
+            "outside"
+          ]
+        }
+      ]
+    },
+    {
+      "topic": "arl/mhe/global/telemetry/habitat",
+      "entity_kinds": [
+        "service"
+      ],
+      "period_s": 300,
+      "fields": [
+        {
+          "key": "mission_day",
+          "type": "integer"
+        },
+        {
+          "key": "power_w",
+          "type": "integer",
+          "unit": "W"
+        }
+      ]
+    }
+  ],
+  "state": [
+    {
+      "topic": "arl/mhe/+/state/setpoints",
+      "type": "object"
+    },
+    {
+      "topic": "arl/mhe/+/state/lighting_schedule",
+      "type": "object"
+    },
+    {
+      "topic": "arl/mhe/+/state/environmental_systems",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/mhe/+/state/sealed",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/mhe/hydroponics/state/irrigation_schedule",
+      "type": "object"
+    },
+    {
+      "topic": "arl/mhe/global/state/subsystems",
+      "type": "object"
+    },
+    {
+      "topic": "arl/mhe/global/state/mission_state",
+      "type": "enum"
+    },
+    {
+      "topic": "arl/mhe/global/state/online",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/mhe/global/state/active_alerts",
+      "type": "array"
+    }
+  ],
+  "events": [
+    {
+      "topic": "arl/mhe/events/alert"
+    },
+    {
+      "topic": "arl/mhe/events/survey"
+    },
+    {
+      "topic": "arl/mhe/events/eva"
+    }
+  ],
+  "controls": [
+    {
+      "topic": "arl/mhe/cmd/+/adjust_temperature",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "float",
+        "min": 285,
+        "max": 300,
+        "unit": "K"
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/+/adjust_humidity",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "float",
+        "min": 20,
+        "max": 80,
+        "unit": "%"
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/+/lighting_schedule",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "object",
+        "fields": [
+          {
+            "key": "start",
+            "type": "string"
+          },
+          {
+            "key": "end",
+            "type": "string"
+          },
+          {
+            "key": "level_lux",
+            "type": "float",
+            "unit": "lx"
+          }
+        ]
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/+/ventilation",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "float",
+        "min": 0,
+        "max": 400,
+        "unit": "m3/h"
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/+/environmental_systems",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/+/seal_room",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/+/crew_wellness_check",
+      "entity_kinds": [
+        "crew"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/airlock/cycle_airlock",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "enum",
+        "values": [
+          "pressurise",
+          "depressurise"
+        ]
+      }
+    },
+    {
+      "topic": "arl/mhe/cmd/hydroponics/irrigation_schedule",
+      "entity_kinds": [
+        "room"
+      ],
+      "value": {
+        "type": "object",
+        "fields": [
+          {
+            "key": "start",
+            "type": "string"
+          },
+          {
+            "key": "end",
+            "type": "string"
+          },
+          {
+            "key": "volume_l",
+            "type": "float",
+            "unit": "L"
+          }
+        ]
+      }
+    }
+  ]
+}

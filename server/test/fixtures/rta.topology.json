@@ -1,0 +1,1161 @@
+{
+  "v": 1,
+  "service": "rta",
+  "version": "0.1.0",
+  "entities": [
+    {
+      "id": "dish-001",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.205657,
+      "lon": 21.6964285,
+      "row": 0
+    },
+    {
+      "id": "dish-002",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.205657,
+      "lon": 21.6970594,
+      "row": 0
+    },
+    {
+      "id": "dish-003",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.205657,
+      "lon": 21.6976903,
+      "row": 0
+    },
+    {
+      "id": "dish-004",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.205657,
+      "lon": 21.6983212,
+      "row": 0
+    },
+    {
+      "id": "dish-005",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.205657,
+      "lon": 21.6989521,
+      "row": 0
+    },
+    {
+      "id": "dish-006",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.205657,
+      "lon": 21.699583,
+      "row": 0
+    },
+    {
+      "id": "dish-007",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.205657,
+      "lon": 21.7002139,
+      "row": 0
+    },
+    {
+      "id": "dish-008",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.205657,
+      "lon": 21.7008448,
+      "row": 0
+    },
+    {
+      "id": "dish-009",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.205657,
+      "lon": 21.7014757,
+      "row": 0
+    },
+    {
+      "id": "dish-010",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.205657,
+      "lon": 21.7021066,
+      "row": 0
+    },
+    {
+      "id": "dish-011",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2061243,
+      "lon": 21.6967439,
+      "row": 1
+    },
+    {
+      "id": "dish-012",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2061243,
+      "lon": 21.6973748,
+      "row": 1
+    },
+    {
+      "id": "dish-013",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2061243,
+      "lon": 21.6980058,
+      "row": 1
+    },
+    {
+      "id": "dish-014",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2061243,
+      "lon": 21.6986367,
+      "row": 1
+    },
+    {
+      "id": "dish-015",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2061243,
+      "lon": 21.6992676,
+      "row": 1
+    },
+    {
+      "id": "dish-016",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2061243,
+      "lon": 21.6998985,
+      "row": 1
+    },
+    {
+      "id": "dish-017",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2061243,
+      "lon": 21.7005294,
+      "row": 1
+    },
+    {
+      "id": "dish-018",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2061243,
+      "lon": 21.7011603,
+      "row": 1
+    },
+    {
+      "id": "dish-019",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2061243,
+      "lon": 21.7017912,
+      "row": 1
+    },
+    {
+      "id": "dish-020",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2061243,
+      "lon": 21.7024221,
+      "row": 1
+    },
+    {
+      "id": "dish-021",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2065916,
+      "lon": 21.6964285,
+      "row": 2
+    },
+    {
+      "id": "dish-022",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2065916,
+      "lon": 21.6970594,
+      "row": 2
+    },
+    {
+      "id": "dish-023",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2065916,
+      "lon": 21.6976903,
+      "row": 2
+    },
+    {
+      "id": "dish-024",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2065916,
+      "lon": 21.6983212,
+      "row": 2
+    },
+    {
+      "id": "dish-025",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2065916,
+      "lon": 21.6989521,
+      "row": 2
+    },
+    {
+      "id": "dish-026",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2065916,
+      "lon": 21.699583,
+      "row": 2
+    },
+    {
+      "id": "dish-027",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2065916,
+      "lon": 21.7002139,
+      "row": 2
+    },
+    {
+      "id": "dish-028",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2065916,
+      "lon": 21.7008448,
+      "row": 2
+    },
+    {
+      "id": "dish-029",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2065916,
+      "lon": 21.7014757,
+      "row": 2
+    },
+    {
+      "id": "dish-030",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2065916,
+      "lon": 21.7021066,
+      "row": 2
+    },
+    {
+      "id": "dish-031",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2070589,
+      "lon": 21.6967439,
+      "row": 3
+    },
+    {
+      "id": "dish-032",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2070589,
+      "lon": 21.6973748,
+      "row": 3
+    },
+    {
+      "id": "dish-033",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2070589,
+      "lon": 21.6980058,
+      "row": 3
+    },
+    {
+      "id": "dish-034",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2070589,
+      "lon": 21.6986367,
+      "row": 3
+    },
+    {
+      "id": "dish-035",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2070589,
+      "lon": 21.6992676,
+      "row": 3
+    },
+    {
+      "id": "dish-036",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2070589,
+      "lon": 21.6998985,
+      "row": 3
+    },
+    {
+      "id": "dish-037",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2070589,
+      "lon": 21.7005294,
+      "row": 3
+    },
+    {
+      "id": "dish-038",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2070589,
+      "lon": 21.7011603,
+      "row": 3
+    },
+    {
+      "id": "dish-039",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2070589,
+      "lon": 21.7017912,
+      "row": 3
+    },
+    {
+      "id": "dish-040",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2070589,
+      "lon": 21.7024221,
+      "row": 3
+    },
+    {
+      "id": "dish-041",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2075262,
+      "lon": 21.6964285,
+      "row": 4
+    },
+    {
+      "id": "dish-042",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2075262,
+      "lon": 21.6970594,
+      "row": 4
+    },
+    {
+      "id": "dish-043",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2075262,
+      "lon": 21.6976903,
+      "row": 4
+    },
+    {
+      "id": "dish-044",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2075262,
+      "lon": 21.6983212,
+      "row": 4
+    },
+    {
+      "id": "dish-045",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2075262,
+      "lon": 21.6989521,
+      "row": 4
+    },
+    {
+      "id": "dish-046",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2075262,
+      "lon": 21.699583,
+      "row": 4
+    },
+    {
+      "id": "dish-047",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2075262,
+      "lon": 21.7002139,
+      "row": 4
+    },
+    {
+      "id": "dish-048",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2075262,
+      "lon": 21.7008448,
+      "row": 4
+    },
+    {
+      "id": "dish-049",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2075262,
+      "lon": 21.7014757,
+      "row": 4
+    },
+    {
+      "id": "dish-050",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2075262,
+      "lon": 21.7021066,
+      "row": 4
+    },
+    {
+      "id": "dish-051",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2079935,
+      "lon": 21.6967439,
+      "row": 5
+    },
+    {
+      "id": "dish-052",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2079935,
+      "lon": 21.6973748,
+      "row": 5
+    },
+    {
+      "id": "dish-053",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2079935,
+      "lon": 21.6980058,
+      "row": 5
+    },
+    {
+      "id": "dish-054",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2079935,
+      "lon": 21.6986367,
+      "row": 5
+    },
+    {
+      "id": "dish-055",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2079935,
+      "lon": 21.6992676,
+      "row": 5
+    },
+    {
+      "id": "dish-056",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2079935,
+      "lon": 21.6998985,
+      "row": 5
+    },
+    {
+      "id": "dish-057",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2079935,
+      "lon": 21.7005294,
+      "row": 5
+    },
+    {
+      "id": "dish-058",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2079935,
+      "lon": 21.7011603,
+      "row": 5
+    },
+    {
+      "id": "dish-059",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2079935,
+      "lon": 21.7017912,
+      "row": 5
+    },
+    {
+      "id": "dish-060",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2079935,
+      "lon": 21.7024221,
+      "row": 5
+    },
+    {
+      "id": "dish-061",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2084608,
+      "lon": 21.6964285,
+      "row": 6
+    },
+    {
+      "id": "dish-062",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2084608,
+      "lon": 21.6970594,
+      "row": 6
+    },
+    {
+      "id": "dish-063",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2084608,
+      "lon": 21.6976903,
+      "row": 6
+    },
+    {
+      "id": "dish-064",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2084608,
+      "lon": 21.6983212,
+      "row": 6
+    },
+    {
+      "id": "dish-065",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2084608,
+      "lon": 21.6989521,
+      "row": 6
+    },
+    {
+      "id": "dish-066",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2084608,
+      "lon": 21.699583,
+      "row": 6
+    },
+    {
+      "id": "dish-067",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2084608,
+      "lon": 21.7002139,
+      "row": 6
+    },
+    {
+      "id": "dish-068",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2084608,
+      "lon": 21.7008448,
+      "row": 6
+    },
+    {
+      "id": "dish-069",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2084608,
+      "lon": 21.7014757,
+      "row": 6
+    },
+    {
+      "id": "dish-070",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2084608,
+      "lon": 21.7021066,
+      "row": 6
+    },
+    {
+      "id": "dish-071",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2089281,
+      "lon": 21.6967439,
+      "row": 7
+    },
+    {
+      "id": "dish-072",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2089281,
+      "lon": 21.6973748,
+      "row": 7
+    },
+    {
+      "id": "dish-073",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2089281,
+      "lon": 21.6980058,
+      "row": 7
+    },
+    {
+      "id": "dish-074",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2089281,
+      "lon": 21.6986367,
+      "row": 7
+    },
+    {
+      "id": "dish-075",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2089281,
+      "lon": 21.6992676,
+      "row": 7
+    },
+    {
+      "id": "dish-076",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2089281,
+      "lon": 21.6998985,
+      "row": 7
+    },
+    {
+      "id": "dish-077",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2089281,
+      "lon": 21.7005294,
+      "row": 7
+    },
+    {
+      "id": "dish-078",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2089281,
+      "lon": 21.7011603,
+      "row": 7
+    },
+    {
+      "id": "dish-079",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2089281,
+      "lon": 21.7017912,
+      "row": 7
+    },
+    {
+      "id": "dish-080",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2089281,
+      "lon": 21.7024221,
+      "row": 7
+    },
+    {
+      "id": "dish-081",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2093954,
+      "lon": 21.6964285,
+      "row": 8
+    },
+    {
+      "id": "dish-082",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2093954,
+      "lon": 21.6970594,
+      "row": 8
+    },
+    {
+      "id": "dish-083",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2093954,
+      "lon": 21.6976903,
+      "row": 8
+    },
+    {
+      "id": "dish-084",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2093954,
+      "lon": 21.6983212,
+      "row": 8
+    },
+    {
+      "id": "dish-085",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2093954,
+      "lon": 21.6989521,
+      "row": 8
+    },
+    {
+      "id": "dish-086",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2093954,
+      "lon": 21.699583,
+      "row": 8
+    },
+    {
+      "id": "dish-087",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2093954,
+      "lon": 21.7002139,
+      "row": 8
+    },
+    {
+      "id": "dish-088",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2093954,
+      "lon": 21.7008448,
+      "row": 8
+    },
+    {
+      "id": "dish-089",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2093954,
+      "lon": 21.7014757,
+      "row": 8
+    },
+    {
+      "id": "dish-090",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2093954,
+      "lon": 21.7021066,
+      "row": 8
+    },
+    {
+      "id": "dish-091",
+      "kind": "dish",
+      "col": 0,
+      "lat": -31.2098627,
+      "lon": 21.6967439,
+      "row": 9
+    },
+    {
+      "id": "dish-092",
+      "kind": "dish",
+      "col": 1,
+      "lat": -31.2098627,
+      "lon": 21.6973748,
+      "row": 9
+    },
+    {
+      "id": "dish-093",
+      "kind": "dish",
+      "col": 2,
+      "lat": -31.2098627,
+      "lon": 21.6980058,
+      "row": 9
+    },
+    {
+      "id": "dish-094",
+      "kind": "dish",
+      "col": 3,
+      "lat": -31.2098627,
+      "lon": 21.6986367,
+      "row": 9
+    },
+    {
+      "id": "dish-095",
+      "kind": "dish",
+      "col": 4,
+      "lat": -31.2098627,
+      "lon": 21.6992676,
+      "row": 9
+    },
+    {
+      "id": "dish-096",
+      "kind": "dish",
+      "col": 5,
+      "lat": -31.2098627,
+      "lon": 21.6998985,
+      "row": 9
+    },
+    {
+      "id": "dish-097",
+      "kind": "dish",
+      "col": 6,
+      "lat": -31.2098627,
+      "lon": 21.7005294,
+      "row": 9
+    },
+    {
+      "id": "dish-098",
+      "kind": "dish",
+      "col": 7,
+      "lat": -31.2098627,
+      "lon": 21.7011603,
+      "row": 9
+    },
+    {
+      "id": "dish-099",
+      "kind": "dish",
+      "col": 8,
+      "lat": -31.2098627,
+      "lon": 21.7017912,
+      "row": 9
+    },
+    {
+      "id": "dish-100",
+      "kind": "dish",
+      "col": 9,
+      "lat": -31.2098627,
+      "lon": 21.7024221,
+      "row": 9
+    },
+    {
+      "id": "main",
+      "kind": "subarray"
+    },
+    {
+      "id": "global",
+      "kind": "service"
+    }
+  ],
+  "streams": [
+    {
+      "topic": "arl/rta/+/telemetry/normal",
+      "entity_kinds": [
+        "dish"
+      ],
+      "period_s": 120,
+      "fields": [
+        {
+          "key": "temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "elevation_rad",
+          "type": "float",
+          "unit": "rad"
+        },
+        {
+          "key": "azimuth_rad",
+          "type": "float",
+          "unit": "rad"
+        },
+        {
+          "key": "power_w",
+          "type": "integer",
+          "unit": "W"
+        },
+        {
+          "key": "system_temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "fault_code",
+          "type": "enum",
+          "values": [
+            "none",
+            "drive_stall",
+            "overheat",
+            "receiver_fault",
+            "power_fault",
+            "comms_loss",
+            "encoder_error"
+          ]
+        },
+        {
+          "key": "status",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "topic": "arl/rta/+/telemetry/scan",
+      "entity_kinds": [
+        "dish"
+      ],
+      "period_s": 1,
+      "fields": [
+        {
+          "key": "temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "elevation_rad",
+          "type": "float",
+          "unit": "rad"
+        },
+        {
+          "key": "azimuth_rad",
+          "type": "float",
+          "unit": "rad"
+        },
+        {
+          "key": "power_w",
+          "type": "integer",
+          "unit": "W"
+        },
+        {
+          "key": "system_temperature_k",
+          "type": "float",
+          "unit": "K"
+        },
+        {
+          "key": "fault_code",
+          "type": "enum",
+          "values": [
+            "none",
+            "drive_stall",
+            "overheat",
+            "receiver_fault",
+            "power_fault",
+            "comms_loss",
+            "encoder_error"
+          ]
+        },
+        {
+          "key": "status",
+          "type": "bool"
+        },
+        {
+          "key": "scan_id",
+          "type": "string"
+        },
+        {
+          "key": "pointing_offset_ra_rad",
+          "type": "float",
+          "unit": "rad"
+        },
+        {
+          "key": "pointing_offset_dec_rad",
+          "type": "float",
+          "unit": "rad"
+        },
+        {
+          "key": "signal_strength",
+          "type": "float"
+        },
+        {
+          "key": "snr_db",
+          "type": "float",
+          "unit": "dB"
+        },
+        {
+          "key": "band_hz",
+          "type": "float",
+          "unit": "Hz"
+        },
+        {
+          "key": "scan_progress",
+          "type": "float"
+        }
+      ]
+    }
+  ],
+  "state": [
+    {
+      "topic": "arl/rta/+/state/commanded",
+      "type": "object"
+    },
+    {
+      "topic": "arl/rta/+/state/subarray",
+      "type": "string"
+    },
+    {
+      "topic": "arl/rta/+/state/last_calibration",
+      "type": "timestamp",
+      "unit": "ms"
+    },
+    {
+      "topic": "arl/rta/+/state/enabled",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/rta/+/state/stowed",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/rta/global/state/active_dishes",
+      "type": "integer"
+    },
+    {
+      "topic": "arl/rta/global/state/wind_stow",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/rta/+/state/scan_state",
+      "type": "enum"
+    },
+    {
+      "topic": "arl/rta/+/state/target",
+      "type": "object"
+    },
+    {
+      "topic": "arl/rta/+/state/observation_frequency",
+      "type": "float",
+      "unit": "Hz"
+    },
+    {
+      "topic": "arl/rta/+/state/next_scan",
+      "type": "timestamp",
+      "unit": "ms"
+    },
+    {
+      "topic": "arl/rta/+/state/scan_id",
+      "type": "string"
+    },
+    {
+      "topic": "arl/rta/+/state/members",
+      "type": "array"
+    },
+    {
+      "topic": "arl/rta/global/state/online",
+      "type": "bool"
+    },
+    {
+      "topic": "arl/rta/global/state/active_alerts",
+      "type": "array"
+    }
+  ],
+  "events": [
+    {
+      "topic": "arl/rta/events/alert"
+    },
+    {
+      "topic": "arl/rta/events/scan"
+    }
+  ],
+  "controls": [
+    {
+      "topic": "arl/rta/cmd/+/start_scan",
+      "entity_kinds": [
+        "subarray"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/schedule_scan",
+      "entity_kinds": [
+        "subarray"
+      ],
+      "value": {
+        "type": "timestamp",
+        "unit": "ms"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/pause_scan",
+      "entity_kinds": [
+        "subarray"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/cancel_scan",
+      "entity_kinds": [
+        "subarray"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/set_target",
+      "entity_kinds": [
+        "subarray"
+      ],
+      "value": {
+        "type": "object",
+        "fields": [
+          {
+            "key": "ra_rad",
+            "type": "float",
+            "unit": "rad"
+          },
+          {
+            "key": "dec_rad",
+            "type": "float",
+            "unit": "rad"
+          },
+          {
+            "key": "fov_rad",
+            "type": "float",
+            "unit": "rad"
+          }
+        ]
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/set_observation_frequency",
+      "entity_kinds": [
+        "subarray"
+      ],
+      "value": {
+        "type": "float",
+        "min": 500000000,
+        "max": 50000000000,
+        "unit": "Hz"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/assign_subarray",
+      "entity_kinds": [
+        "dish"
+      ],
+      "value": {
+        "type": "string"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/adjust_azimuth",
+      "entity_kinds": [
+        "dish"
+      ],
+      "value": {
+        "type": "float",
+        "min": 0,
+        "max": 6.283185307179586,
+        "unit": "rad"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/adjust_elevation",
+      "entity_kinds": [
+        "dish"
+      ],
+      "value": {
+        "type": "float",
+        "min": 0.0873,
+        "max": 1.5707963267948966,
+        "unit": "rad"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/enable_dish",
+      "entity_kinds": [
+        "dish"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/stow_dish",
+      "entity_kinds": [
+        "dish"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    },
+    {
+      "topic": "arl/rta/cmd/+/request_recalibration",
+      "entity_kinds": [
+        "dish"
+      ],
+      "value": {
+        "type": "bool"
+      }
+    }
+  ]
+}
