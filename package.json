@@ -1,0 +1,25 @@
+{
+  "name": "arl-ops-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ARL operations platform: MQTT telemetry ingest, alert annunciator and replay for the Radio Telescope Array, Mars Habitation Experiment and On-demand Power Generation.",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace web run build && npm --workspace server run build",
+    "start": "npm --workspace server run start",
+    "test": "npm --workspace server run test",
+    "typecheck": "npm --workspace server run typecheck && npm --workspace web run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=18.18"
+  }
+}
