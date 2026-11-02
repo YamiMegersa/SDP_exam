@@ -47,7 +47,7 @@ Open Items, AI Declaration, Licences.
 That is a strong README. It is also **still edited by another instance of this conversation**, which is
 the single most important constraint on this document (§4.3).
 
-The planning set is complete and separate: 33 documents, `00`–`53`, ~9,400 lines, none of them
+The planning set is complete and separate: 34 documents, `00`–`54`, ~9,700 lines, none of them
 referenced from the README yet.
 
 ### 2.1 The claim audit (the finding that matters)
@@ -143,7 +143,7 @@ noted once (it already is, R11). A marker should never need `dev`.
 
 #### 4.2.1 What it is
 
-33 documents in `Planning Docs/`, one per component, each decomposed into subsystems and subcomponents
+34 documents in `Planning Docs/`, one per component, each decomposed into subsystems and subcomponents
 with a **Responsibility / Contract / Steps / Acceptance** block per subcomponent. `00-INDEX-AND-BLUEPRINT.md`
 is the map and the blueprint; `exam_handout.md` is the brief itself.
 
@@ -156,6 +156,7 @@ is the map and the blueprint; `exam_handout.md` is the brief itself.
 | `30`–`33` | MHE: data, controls, visualisation, alerts |
 | `40`–`43` | OPG: data, controls, visualisation, alerts |
 | `50`–`53` | Security, testing, simulator harness, submission (this document) |
+| `54` | The implementation queue: what is non-negotiable, what order to build in, and what to cut |
 
 #### 4.2.2 How it should be read
 

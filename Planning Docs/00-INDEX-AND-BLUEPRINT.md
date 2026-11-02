@@ -18,7 +18,7 @@ services. Treat the foundation as fixed scaffolding and extend it; do not rewrit
 
 | Layer | Documents | Question it answers |
 | :--- | :--- | :--- |
-| Orientation | `00` (this file) | What exists, what is missing, what order to build in |
+| Orientation | `00` (this file), `54` | What exists, what is missing, what order to build in |
 | Platform plane | `01`–`11` | How data becomes knowledge, and how the shell runs |
 | Presentation plane | `12`–`15` | How the operator sees and drives it |
 | Service plane | `20`–`23` (RTA), `30`–`33` (MHE), `40`–`43` (OPG) | What each service must do, per rubric criterion |
@@ -33,6 +33,7 @@ marked in four columns: **Data (30 %)**, **Control (30 %)**, **Visualisation (30
 **Orientation**
 
 - `00-INDEX-AND-BLUEPRINT.md` — this file.
+- `54-IMPLEMENTATION-QUEUE.md` — the build order, derived from the rubric's band arithmetic: the non-negotiable tier, the nine phases, the ranking of every plan, and the cut list.
 
 **Platform plane (server)**
 
@@ -48,7 +49,7 @@ marked in four columns: **Data (30 %)**, **Control (30 %)**, **Visualisation (30
 | `08-TRANSPORT-REST.md` | REST surface, error contract, static serving | Working; needs new endpoints |
 | `09-TRANSPORT-WEBSOCKET.md` | Hello snapshot, coalesced frames, replay watch, backpressure | Working |
 | `10-ARL-API-INTEGRATION.md` | Researchers, verify, limits, targets, health, caching | Working; needs limit caching for UI |
-| `11-DERIVED-MEASURES.md` | Server-side aggregates, rollups, cross-service correlation | **Missing** |
+| `11-DERIVED-MEASURES.md` | Server-side aggregates, rollups, cross-service correlation | Partial — seven measures live in `derived/measures.ts`; the adapter layer and rollups are missing |
 
 **Presentation plane (web)**
 
