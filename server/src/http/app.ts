@@ -7,9 +7,9 @@ import type { CommandService } from '../commands/service';
 import type { Config } from '../config';
 import type { Store } from '../db/store';
 import { latestStates, series, serviceCounts, timeRange } from '../db/queries';
-import { deriveAll } from '../derived/measures';
 import type { Ingest } from '../mqtt/ingest';
 import type { ReplayService } from '../replay/session';
+import { deriveAll } from '../services';
 import type { TopologyRegistry } from '../topology/registry';
 import type { SimClock } from '../util/clock';
 import { logger } from '../util/log';
@@ -174,7 +174,7 @@ export function createApp(deps: AppDeps): express.Express {
     );
     res.json({
       at: deps.clock.known() ? deps.clock.now() : null,
-      services: deriveAll(deps.store, deps.registry, deps.cfg, limits),
+      services: deriveAll(deps.store, deps.registry, deps.cfg, limits, requested),
     });
   });
 
