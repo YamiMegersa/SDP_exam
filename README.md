@@ -8,8 +8,12 @@ This README is the single entry point for the project **and the live progress tr
 Decisions, decision changes, implemented features, known bugs and open questions are recorded here as
 they happen (see [Progress Log](#progress-log) and [Decision Register](#decision-register)).
 
+**Student number 2800269.** The graded repository is therefore `2800269-sdp-exam-2026`, private, on
+`sdp.ms.wits.ac.za` — see [Open Items](#open-items--questions) for its state.
+
 > Running the ARL sim locally: see [Running Locally](#running-locally).
 > Running the platform: see [Running the Platform](#running-the-platform).
+> What it looks like: see [Screenshots](#screenshots).
 > Running the tests: see [Testing](#testing).
 
 **Implementation plan.** The project is dismantled — first into components, then each component into
@@ -27,15 +31,15 @@ The exam requires three of the five ARL services. **Selected:**
 
 | Slot | Weight | Service | Code | Status |
 | --- | --- | --- | --- | --- |
-| Required | 30% | Radio Telescope Array | `rta` | Planned |
-| Best of MHE / LWM | 17.5% | Mars Habitation Experiment | `mhe` | Planned |
-| Best of OPG / OWT | 17.5% | On-demand Power Generation | `opg` | Planned |
-| Platform | 10% | Alert system (annunciator + audit) | — | Planned |
-| Platform | 10% | Replay system | — | Planned |
-| Platform | 5% | Architecture | — | In progress |
-| Platform | 5% | Security | — | Planned |
-| Platform | 2.5% | UI / UX | — | Planned |
-| Platform | 2.5% | Testing | — | Planned |
+| Required | 30% | Radio Telescope Array | `rta` | Implemented, verified live |
+| Best of MHE / LWM | 17.5% | Mars Habitation Experiment | `mhe` | Implemented, verified live |
+| Best of OPG / OWT | 17.5% | On-demand Power Generation | `opg` | Implemented, verified live |
+| Platform | 10% | Alert system (annunciator + audit) | — | Implemented, verified live |
+| Platform | 10% | Replay system | — | Implemented, verified live |
+| Platform | 5% | Architecture | — | Implemented (shared shell + service plugins) |
+| Platform | 5% | Security | — | Implemented, verified (403/503 gates) |
+| Platform | 2.5% | UI / UX | — | Implemented (three workspaces, alerts, replay) |
+| Platform | 2.5% | Testing | — | 97 tests, 7 files, passing |
 
 Implementation order: **RTA → OPG → MHE**. The shared shell (ingestion, persistence, alerts, replay,
 websocket push) is built first and is generic; each service then plugs in.
@@ -102,14 +106,52 @@ Single deployment: one Node process serves the JSON/WebSocket API and the built 
                                   +--------------------+
 ```
 
+**Module names as built.** The block above names modules by role. The directories that implement those
+roles are `config.ts`, `topology/registry.ts`, `mqtt/ingest.ts`, `db/`, `alerts/engine.ts`,
+`commands/service.ts`, `services/`, `arlApi/client.ts`, `replay/session.ts`, `http/` and `platform/`.
+`services/` holds one plugin per service — `rta.ts`, `mhe.ts`, `opg.ts` — behind the `ServicePlugin`
+contract in `services/types.ts`. Nothing generic (ingest, store, alerts, replay, HTTP) imports a
+plugin, and no plugin contains a topic string: a service is enumerated in exactly two places, the
+configured service list and the topology it publishes.
+
+Services are discovered, not hard-coded. Every service publishes a retained `$topology` describing
+its entities, streams, state items, event kinds and controls; the platform subscribes to
+`arl/+/$topology` and builds its routing table from whatever arrives. The brief's suggested
+`arl/+/discovery` probe is not published by any of the three services (verified on the wire), so the
+retained `$topology` is the discovery mechanism — it carries strictly more information and costs one
+message per service instead of a probe plus a fetch.
+
+### Service plugins and derived measures
+
+Each plugin answers three questions about its own service and returns numbers, verdicts and the
+inputs it used. Verdicts are compared against the limits the ARL API publishes for that service
+(`GET /v1/alert-limits/<service>`); when a limit or an input is missing the measure reports `unknown`
+rather than guessing.
+
+| Plugin | Measure | Definition |
+| --- | --- | --- |
+| RTA | `rta.array_availability` | active dishes / dishes in `$topology`, checked against `availability.min_active` |
+| RTA | `rta.pointing_error` | great-circle angle between commanded az/el (`state`) and achieved az/el (telemetry) |
+| RTA | `rta.scan_progress` | mean progress across dishes currently reporting a `scan_id` |
+| MHE | `mhe.headcount` | Σ `crew_count` across rooms vs the crew roster; a missing room warns, a mismatch is critical |
+| MHE | `mhe.stress_index` | mean heart rate mapped onto 0–100 between resting (60) and ceiling (110) bpm, with mean CO₂ carried alongside |
+| MHE | `mhe.co2_mean` | habitat mean CO₂ against `air.co2_warn_ppm` / `air.co2_crit_ppm` |
+| OPG | `opg.net_margin` | `P_net = P_solar + P_diesel − P_load`; negative only escalates when the bank is also below `battery.warn_pct` |
+| OPG | `opg.autonomy` | usable bank energy `(SoC − reserve)% × 4000 kWh` divided by the instantaneous discharge rate; only a discharging bank has a projection |
+| OPG | `opg.renewable_share` | solar output / load; `unknown` at night, when a zero describes the clock rather than a fault |
+
+Served at `GET /api/derived` (optionally `?service=opg`) and polled by all three workspaces.
+
 ### Data flow
 
-1. `topology.ts` subscribes to `arl/<svc>/$topology` (retained) for each configured service and builds a
-   registry of entities, streams (with field names, types, units, periods), state items, event kinds and
+1. Ingest subscribes to `arl/+/$topology`; each arrival builds a registry entry for entities, streams
+   (with field names, types, units, periods), state items, event kinds and
    controls. **The registry drives ingestion, validation, rendering and control UI generation** — adding a
-   device needs no ingestion change.
-2. Ingest subscribes to `arl/<svc>/<entity>/telemetry/<stream>`, `arl/<svc>/<entity>/state/<item>`,
-   `arl/<svc>/events/<kind>` and `arl/<svc>/ack/<command_id>`.
+   device needs no ingestion change. Samples that arrive before their topology are held and replayed
+   once it lands.
+2. The same connection subscribes to `arl/+/+/telemetry/+`, `arl/+/+/state/+`, `arl/+/events/+` and
+   `arl/+/ack/+`. Wildcards only: an entity or stream that did not exist when this code was written is
+   still routed.
 3. Messages are validated against the registry, stamped with both the envelope `ts` (simulated time) and
    the local receive time, then queued.
 4. A batch writer flushes the queue to SQLite in one transaction (bounded by count and elapsed time), so
@@ -131,8 +173,7 @@ samples (`backfill: true`) out of order.
 
 | Table | Purpose |
 | --- | --- |
-| `service` | Per-service `online` state, last message, last topology version. |
-| `topology` | Latest `$topology` JSON per service (versioned). |
+| `service` | Per-service `online` state, last message, and the latest `$topology` JSON with its version. |
 | `entity` | Entity ids, kinds and metadata (from `$topology`). |
 | `telemetry` | `(service, entity, stream, ts, seq, data JSON, recv_ts)`; indexed for entity/stream/time range scans. |
 | `state_change` | History of retained state items `(service, entity, item, ts, value)`. |
@@ -142,7 +183,7 @@ samples (`backfill: true`) out of order.
 | `command` | One row per `command_id`: control, value, researcher, sent time, terminal state, reason, detail. |
 | `command_ack` | Append-only ack log (accepted → in_progress → completed/failed, progress). |
 | `ingest_gap` | Detected `seq` discontinuities and heartbeat staleness per topic. |
-| `researcher_cache` | Verified researcher codes with TTL and their permitted services. |
+| `researcher` | Last-known verified researcher codes (TTL cache), so a name still renders while the API is down. |
 
 ---
 
@@ -184,6 +225,16 @@ Everything is configured through environment variables. No credentials are commi
 | `RESEARCHER_CACHE_TTL_S` | no | `60` | Researcher verification cache TTL. |
 | `TELEMETRY_BATCH_MS` | no | `250` | Max delay before a batch flush. |
 | `TELEMETRY_BATCH_ROWS` | no | `1000` | Max rows per batch flush. |
+| `MQTT_CLIENT_ID` | no | `arl-platform-<pid>` | Broker client id. |
+| `MQTT_QUEUE_LIMIT` | no | `50000` | Outgoing queue while the broker is slow. |
+| `SERVICE_SILENCE_S` | no | `180` | Silence before the platform declares a feed stale. |
+| `TELEMETRY_RETENTION_H` | no | `0` | Raw telemetry retention; 0 keeps everything. |
+| `OPG_BATTERY_KWH` | no | `4000` | Nameplate bank energy used by `opg.autonomy`. |
+| `MHE_CREW_EXPECTED` | no | `0` | Rated crew for `mhe.headcount`; 0 counts the topology's `crew` entities. |
+| `STRESS_REST_BPM` / `STRESS_MAX_BPM` | no | `60` / `110` | Heart-rate ends of the crew stress index. |
+
+Only the four `MQTT_*`/`ARL_API_*` address variables are mandatory; the rest have defaults. Nothing in
+the repository contains a broker or API credential.
 
 ---
 
@@ -243,39 +294,130 @@ npm start
 
 After `npm run build && npm start`, open `http://localhost:3000`.
 
+Navigation is hash-routed: `#/rta`, `#/mhe`, `#/opg`, `#/alerts`, `#/replay` (plus an overview).
+The annunciator bar sits above every page and never scrolls away, so an alert raised on the RTA
+workspace is visible while the operator is looking at OPG.
+
 The platform does **not** authenticate users. Selecting a researcher code in the header is an
 *identity for control actions*, not a login: monitoring, alerts and replay are visible to everyone;
-control actions are attributed to, and gated by, the selected code's permitted services.
+mutating actions are attributed to, and gated by, the code's existence in the ARL directory.
+
+| Surface | Behaviour |
+| --- | --- |
+| RTA workspace | 10×10 dish matrix (status/az-el/temperature), Canvas scan raster reconstructed client-side from 1 Hz scan packets, target/scan/stop controls |
+| MHE workspace | room blueprint with O₂/CO₂/temperature/occupancy, crew vitals, derived headcount/stress/CO₂ panel, scrubber and airlock controls |
+| OPG workspace | solar → bus → load energy flow, SoC gauge, diesel runtime and fuel, source-priority and load-shedding controls, autonomy and margin detail |
+| Alerts | annunciator with severity ordering, acknowledge (code) and resolve (code + note), per-alert audit trail, transition history |
+| Replay | window selection over captured history, play/pause/rewind/fast-forward, 1×/2×/5×/10×, scrub bar, alert correlation |
+
+### REST surface
+
+`GET /api/health`, `/services`, `/services/:service/topology`, `/series`, `/states`, `/range`,
+`/targets`, `/derived`, `/alert-limits/:service`, `/researchers/:code`, `/alerts`, `/alerts/:id`,
+`/commands`, `/commands/:id/acks`, `/replay`, `/replay/:id`.
+
+`POST /api/commands`, `/alerts/:id/acknowledge`, `/alerts/:id/resolve`, `/replay`,
+`/replay/:id/play|pause`, `/replay/:id/speed`, `/replay/:id/seek`; `DELETE /api/replay/:id`.
+Every mutating route requires a `researcher` code that the server verifies itself — see
+[Security Decisions](#security-decisions).
+
+---
+
+## Screenshots
+
+Captured from the running platform against the live ARL simulator at 1440×900: real telemetry, not
+fixtures. The RTA mosaic is a scan the page itself started, and the replay shot is a real session over
+rows this platform captured.
+
+### Overview — `#/overview`
+
+![Overview: three service cards, active alerts, platform health](docs/screenshots/overview.png)
+
+The three workspaces in miniature (active dishes and target, mission state and CO₂, generation and
+margin, SoC), the active-alert list with severity and inline acknowledgement, and platform health:
+3/3 services, 121 entities, WebSocket batches, sequence gaps and broker state. OPG is running off the
+bank after dark (0 W generated, margin −238.9 kW, supply mode `battery`), and the CRITICAL
+`Too few dishes in service` is the RTA availability measure compared with the floor the service
+publishes — 79 active against a limit of 80 when it was raised — so the annunciator and the derived
+readout agree.
+
+### RTA — `#/rta`
+
+![RTA: scan mosaic, dish matrix, controls, command log](docs/screenshots/rta.png)
+
+A 128×128 scan of the Large Magellanic Cloud at 1.420 GHz, rebuilt in Canvas from the 1 Hz scan
+packets: 100 % of pixels filled, 79/100 dishes active, pointing error 0.01°, `scan-0004` running with
+679 s of integration. The command log carries a rejected `start_scan` (`precondition failed · target
+below horizon`) beside the accepted retry — the simulator's own reason codes are surfaced verbatim,
+not translated into a generic failure.
+
+### MHE — `#/mhe`
+
+![MHE: habitat plan, compartment detail, crew vitals, controls](docs/screenshots/mhe.png)
+
+All nine compartments with live hazard colouring — Hydroponics is amber at 1,027 ppm CO₂ against
+464–583 ppm elsewhere — beside the derived panel (headcount 5, stress index 38, mean CO₂ 516 ppm),
+the environmental setpoints and the status tiles. The plan keeps its intrinsic aspect ratio and the
+column scrolls, rather than the drawing overlapping its neighbours (see D14).
+
+### OPG — `#/opg`
+
+![OPG: energy flow, power margin, state of charge, generation sources](docs/screenshots/opg.png)
+
+After dark: the array is at 0 W, so the bus is fed from the bank and the flow diagram names the mode
+(`discharge`). Margin −228.8 kW in deficit, 92.4 % SoC, autonomy 12.7 h, solar share 0 %, with the
+generation sources, dispatch controls and battery detail carrying the same numbers. Autonomy is
+computed from the instantaneous discharge rate and the nameplate energy rather than assumed; when the
+bank is idle it reads `—` with the reason `the bank is not discharging` instead of inventing a figure.
+Dispatch is submitted under the researcher's own policy (`solar_first`), and this account is refused
+permission to start the diesel generator by the ARL directory (`not_permitted`) — the least-privilege
+gate doing its job, not a UI defect.
+
+### Alerts — `#/alerts`
+
+![Alerts: annunciator log, detail panel, audit trail](docs/screenshots/alerts.png)
+
+25 alerts in alarm, filterable by lifecycle state, each row carrying severity, source, message, raise
+time and the researcher who acted. The detail panel shows the measured value against the limit that
+produced it plus the append-only audit trail; acknowledge and resolve are the two actions that require
+a code the server verifies before anything is written.
+
+### Replay — `#/replay`
+
+![Replay: scrub bar with alert ticks, reconstructed mosaic, transport](docs/screenshots/replay.png)
+
+A replay session over this platform's own captured history (240,921 rows stored): the scrub bar
+carries alert ticks so an operator can jump to the conditions behind a transition, playback runs at
+10× with play/pause/rewind, the events list replays the alert stream at the cursor, and the mosaic is
+rebuilt from the stored scan rows — not from the broker or the API backlog.
 
 ---
 
 ## Testing
 
 ```bash
-npm test            # unit + integration
+npm test            # 97 tests across 7 files (vitest)
 npm run test:watch
+npm run --workspace server test:typecheck   # typecheck the tests too
 ```
 
-Strategy (and the reasoning behind it):
+The suite runs against the source, not `dist`, and every database is `:memory:` or a temp file, so
+tests never touch `data/arl.sqlite`.
 
-- **Unit — parsing:** envelope validation, `null` measurement handling, `seq` gap detection, `$topology`
-  registry construction, alert-limit decoding.
-- **Unit — alert rules:** alert lifecycle transitions (raise → escalate → clear), acknowledgement and
-  resolution state machine, audit rows, and refusal to ack a cleared/unknown alert.
-- **Integration — persistence:** batch writer under burst load (RTA scan rate), replay range queries
-  returning exactly the captured window, and ordering by simulated `ts` when backfilled samples arrive.
-- **Integration — against the test broker:** the local sim runs with controls enabled, so command
-  publishing, ack correlation and rejection reasons (`researcher_not_permitted`, `precondition_failed`)
-  are tested end-to-end. Simulated faults (`ARL_SCENARIO`) drive the alert rules with real payloads
-  rather than fixtures.
+| File | Covers |
+| --- | --- |
+| `test/topology.test.ts` | `$topology` parsing (entity kinds, wildcarded streams, exact state topics), event/ack routing, control-to-entity matching, and the full control value validator (bool, enum, ranges, integers, object fields, timestamps) |
+| `test/alerts.test.ts` | raise → escalate → clear → reopen, acknowledgement and resolution state machine (including 409s), audit trail contents, annunciator counters, platform alerts, engine input rejection, and the startup reconciliation that closes a broker alert a previous process left open |
+| `test/persistence.test.ts` | WAL mode, durability across reopen, single-transaction batch writes, latest-sample read models, chart ranges, researcher TTL cache, command lifecycle and timeout |
+| `test/replay.test.ts` | the three-source interleave (regression for the mosaic bug), seek-on-target, service filtering, speed/seek clamping, pause/stop semantics, session registry |
+| `test/derived.test.ts` | every plugin measure including the OPG autonomy formula, MHE headcount mismatch, CO₂ escalation, night-time solar share, and `unknown` rather than invented values when nothing has arrived |
+| `test/ingest.test.ts` | scenario-driven: topology after samples (orphan drain), wildcard routing, unconfigured services, sequence-gap alerts, state de-duplication, scalar retained state, alert events, offline flips |
+| `test/api.test.ts` | supertest against the real Express app: derived endpoint, 400/403/503/409/200 on alert mutations with no audit write on refusal, replay lifecycle, health/services/alerts reads, JSON 404 |
 
-**Status.** The suite above is **planned, not yet implemented**. `vitest` and `supertest` are installed
-and `npm test` is wired to `vitest run`, but no test files exist yet, so the command currently reports
-"no test files found" (defect D-1). The order in which the tests will be written — thirty of them,
-ranked by marks per hour — the fixture strategy, and the drill catalogue that runs against the test
-broker with controls enabled and simulated faults are specified in `Planning Docs/51-TESTING.md` and
-`Planning Docs/52-SIMULATOR-HARNESS.md`. `npm test` starts working the moment the first of those files
-lands, and this note is deleted at that point.
+These tests have already earned their keep: `?service=` on `/api/derived` was validated but never
+applied until the API test failed, the replay interleave is pinned so the empty-mosaic regression
+cannot return, and the broker-alert reconciliation is pinned so a restart cannot leave a stale
+CRITICAL annunciator behind.
 
 ---
 
@@ -284,12 +426,18 @@ lands, and this note is deleted at that point.
 The lab's security is weak and out of scope; the requirement is not to weaken it further.
 
 - **No authentication by design.** There is no login, no session, no password. Researcher *codes* are
-  the lab's existing control mechanism and are only used to attribute and authorise control actions.
+  the lab's existing control mechanism and are only used to attribute and authorise mutating actions.
 - **Least privilege on control.** Every control request is verified against the ARL API
   (`POST /v1/researchers/verify`) and cached briefly. A code that is unknown, defunct, or not permitted
   for the service cannot dispatch a command, and the UI explains why.
-- **Server-side authorisation.** The browser cannot bypass the check: the server owns verification and
-  command construction. Researcher codes are never trusted from client-supplied claims about permissions.
+- **Alert mutations are researched too.** `POST /api/alerts/:id/acknowledge` and `/resolve` require a
+  code that the server resolves against `GET /api/researchers/:code` **before** anything is written.
+  An unknown code is `403 unknown_researcher`; if the directory itself is unreachable the answer is
+  `503 api_unavailable` and nothing is recorded. Refusals leave the audit trail untouched — verified by
+  test, not by inspection.
+- **Fail closed.** The server owns verification and command construction; the browser cannot bypass it.
+  Researcher codes are never trusted from client-supplied claims about permissions, and the client
+  disables the confirm button until the code has been verified.
 - **No hard-coded credentials.** Broker and API details come only from environment variables; `.env` is
   git-ignored. The API is read-only in the live deployment, so a leaked credential cannot write.
 - **Input handling.** All inbound MQTT payloads are treated as untrusted: validated against the
@@ -310,8 +458,14 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 | D4 | 2026-11-02 | Simulated `ts` is the only ordering/charting clock; wall clock kept separately | `ARL_SPEEDUP` and LWM/MHE backfill make wall clock wrong for replay | Ordering by receive time (breaks replay and backfill) |
 | D5 | 2026-11-02 | `$topology`-driven generic ingestion and UI, with per-service adapter modules for presentation | Architecture rubric rewards services plugging into a shared shell through a common interface | Three hand-written integrations (highest score band unavailable) |
 | D6 | 2026-11-02 | A state change is stored (and pushed) only when its value differs from the last one seen | The RTA republishes every dish's `commanded`/`enabled`/`stowed` items about once a second with an unchanged value; storing each repeat would make `state_change` grow at ~500 rows/s and bury real transitions | Storing every publish (volume without information); sampling state on a timer (misses short-lived transitions) |
-| D7 | 2026-11-02 | Controls require a researcher code verified by the ARL API (fail closed). Alert acknowledge/resolve accept a well-formed code without the API, and resolve the name opportunistically | Losing the API must not block alarm handling, but it must block moving hardware. The audit trail records who either way | Verifying codes for acknowledgements too (an API outage would freeze the alarm panel); no code at all for alerts (no attribution) |
+| D7 | 2026-11-02 | Controls require a researcher code verified by the ARL API (fail closed). Alert acknowledge/resolve accept a well-formed code without the API, and resolve the name opportunistically **(superseded by D9)** | Losing the API must not block alarm handling, but it must block moving hardware. The audit trail records who either way | Verifying codes for acknowledgements too (an API outage would freeze the alarm panel); no code at all for alerts (no attribution) |
 | D8 | 2026-11-02 | RTA image geometry (`grid_size`, `fov_rad`, `overlap`, `band_hz`, `dishes`) is read from the `events/scan` *started* payload, not from the target catalogue | Verified against the sim: the catalogue lists `fov_rad = 0.005` for `tgt-cen`, while the started event reports `fov_rad = 0.01`, `grid_size = 128`, `overlap = 3`. Using the catalogue would put every sample at the wrong pixel | Assuming a fixed 128 grid and the catalogue FOV (silently misplaced image) |
+| **D9** | 2026-11-02 | **Decision change — reverses D7.** Alert acknowledge/resolve now require a code the server resolves against `GET /api/researchers/:code` before writing anything: `403 unknown_researcher`, `503 api_unavailable`, audit trail untouched. The client disables confirm until verified | The exam requires a signed audit trail for every alert transition, and an unverified code lets a typo — or anyone on the lab network — sign off an alarm with no accountable name. A 503 keeps the distinction between "wrong code" and "our dependency is down" | D7's optimistic acceptance (unattributable sign-off); accepting any well-formed code (same fault, faster) |
+| D10 | 2026-11-02 | Service discovery is the retained `arl/+/$topology`, not the brief's `arl/+/discovery` probe | Probed the running broker: no service publishes anything under `discovery`. `$topology` is retained, arrives on subscribe, and carries the full entity/stream/state/event/control schema — strictly more than a discovery hint | Subscribing to a topic no service publishes (silent, unfalsifiable failure) |
+| D11 | 2026-11-02 | Per-service derived measures live in `services/{rta,mhe,opg}.ts` behind a `ServicePlugin` contract, replacing the single `derived/measures.ts` | Each service answers its own questions and carries its own label/accent/focal kind; the shell imports the plugin table only, so no generic module can grow a `service === 'rta'` branch | One shared measures module with per-service branches (the code the refactor deleted) |
+| D12 | 2026-11-02 | Every derived verdict is compared against the ARL alert limits the service publishes, and returns `unknown` when a limit or input is missing | A threshold duplicated in the UI drifts from the service's own rule set (this is defect D-10 in `00` §6); `unknown` is an honest answer, a fabricated zero is not | Literal thresholds in the client; substituting 0 for a missing sample |
+| D13 | 2026-11-02 | Platform alerts are reconciled at startup, not only on a transition: `brokerConnected` starts `false` and `AlertEngine.start()` sweeps immediately | A CRITICAL `broker_disconnected` raised in one run survived the restart that fixed it and stayed red for the rest of the session, because the engine only clears on an edge it never saw. Now the first `connect` closes the old row and the first sweep clears stale silence/gap alerts; the close is an audit transition, not a deletion | Trusting the stored row (a lying red banner); deleting platform alerts on boot (destroys the trail of when the platform lost the broker) |
+| D14 | 2026-11-02 | The MHE habitat plan is height-capped and never allowed to shrink (`max-h-[44vh]`, `max-w-[620px]`, `shrink-0` on its panel) | Sizing the SVG by width alone made it grow to the column width and paint over the compartment detail and crew strip below; letting the flex box squeeze it made the drawing (and its hit areas) unreadable. A fixed-aspect drawing scrolls the column instead | Absolute positioning over the layout (still overlaps); rasterising the plan to an image (loses live hazard colouring) |
 
 ---
 
@@ -319,6 +473,50 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 
 Newest first. Each entry: what changed, and why if non-obvious.
 
+- **2026-11-02 — Screenshots captured from the live platform, and reviewing them found four defects**
+  (six routes in `docs/screenshots/`, embedded above). No headless Chromium on this machine and `/tmp`
+  is read-only in the sandbox, so the capture harness drives Firefox's WebDriver BiDi endpoint instead;
+  a one-shot `--screenshot` fires on the load event, before the WebSocket has delivered anything, which
+  is why the pages were blank on the first attempt. The defects, all fixed and re-captured:
+  - *The habitat plan painted over its neighbours.* The SVG was sized by width only inside a squeezed
+    flex panel, so it grew past the panel and covered the compartment detail and crew strip (D14).
+  - *Two literal escapes rendered as text*: `\u00b7` in the alert detail subtitle and `\u2192` in the OPG
+    energy-flow hint. JSX attribute and text literals keep the backslash, so escapes only work inside a
+    JS *expression* (`hint={'…'}`); both are now expressions.
+  - *A stale CRITICAL alert survived every restart.* `AlertEngine.brokerConnected` initialised to
+    `true`, so the first real `connect` looked like "no change" and the `platform/platform/broker` row
+    from the previous run was never cleared. It now starts `false` and sweeps on start (D13), with a
+    regression test that asserts the old row closes on the first connect — 97 tests now.
+- **2026-11-02 — Test suite landed (96 tests, 7 files) and immediately paid for itself.** Parsing,
+  control validation, alert lifecycle, persistence, replay interleaving, all nine derived measures,
+  scenario-driven ingest through the real `Ingest`, and supertest against the real Express app. Two
+  defects surfaced while writing it: `GET /api/derived?service=opg` validated the parameter and then
+  returned all three services (`deriveAll` now takes the selection); and `opg.net_margin` reported
+  `0 W ok` when nothing had arrived, which is now `unknown` with reason `no power samples yet`.
+  `npm test` runs in ~1.3 s, uses `:memory:`/temp databases, and `tsconfig.test.json` typechecks the
+  tests (the build config excludes them so they never reach `dist`).
+- **2026-11-02 — Derived measures refactored into service plugins.** `derived/measures.ts` became
+  `services/{types,util,rta,mhe,opg,index}.ts`. The shell imports the plugin table (`deriveAll`) and
+  nothing else; a plugin owns its label, accent, focal entity kind and its three questions. Live
+  values on the running sim: RTA availability 0.8/warn, pointing 0.008°/ok, MHE headcount 5/ok,
+  stress 20, CO₂ 488 ppm, OPG solar share 1.0, autonomy `null` while charging.
+- **2026-11-02 — Alert mutations now verify identity (decision change D9).** Acknowledge and resolve
+  call `ArlApi.identify()` before touching the store: `403 unknown_researcher`, `503 api_unavailable`,
+  and a refused request writes no transition. Verified with curl against the live server (403 left the
+  audit trail untouched; `arl-as3` succeeded). The dialog mirrors the rule — confirm stays disabled
+  until the code verifies, and it distinguishes "no such researcher" from "directory unreachable".
+- **2026-11-02 — Replay mosaic bug fixed (root cause, not symptom).** Replay released 56,603 `state`
+  frames and zero scan samples in a window holding 56,400 scan rows. `peek()` chose the smallest-`ts`
+  source but `shift()` drained the first non-empty buffer, so one source's head repeated while its
+  rows were labelled as another kind. `peek()` now returns the source with the row and only that
+  source is consumed; `seek()` resets the keyset to `id = 0` so a row sitting exactly on the target
+  is not skipped. Re-probed: 4,800 scan frames, 1,355 with pointing offsets, 585 state, 103 events;
+  the browser then rendered 2,006 samples (12.2 % of pixels) and a visible Centaurus A.
+- **2026-11-02 — Web client complete and verified in a browser.** Shared shell with the always-visible
+  annunciator, RTA (dish matrix, Canvas raster, controls), MHE (room blueprint, crew vitals, derived
+  panel), OPG (energy flow, SoC gauge, battery detail), Alerts and Replay pages. A full pass over all
+  five routes passed with no websocket errors; a cached bundle initially produced a false failure and
+  is now checked against the served asset before believing a browser result.
 - **2026-11-02 — Shared server shell built and verified end to end.** Config, domain types, SQLite schema +
   store, topology registry, ARL API client, alert engine, MQTT ingest, command service, replay engine,
   REST + websocket layer, and `index.ts` wiring. Typechecks clean (`tsc --noEmit`, 18 files).
@@ -366,18 +564,33 @@ Newest first. Each entry: what changed, and why if non-obvious.
 | R9 | Alert *events* are not retained, so alerts raised before the platform started exist in the service's `state/active_alerts` but not in our `alert` table | Show the service's reported active-alert ids next to the platform's own list and flag the difference as "not observed since start-up" rather than inventing detail we never received. |
 | R10 | Local ARL sim containers restarted mid-session and the RTA's simulated clock stalled at its start time (every state message reused the boot timestamp, so `start_scan` kept answering `target_below_horizon`) | Restart the simulator, not the platform; the platform tolerates it (state de-duplication and `seq` reset are both handled). Recreated the sims with `ARL_START_TIME=now` and speedups (rta 5, mhe 30, opg 30) to keep a working profile. |
 | R11 | `tsx` (and any tool that opens an IPC socket in `/tmp`) fails under the sandbox with `EROFS` | Develop with `tsc -w` + `node dist/index.js`, or run the dev server outside the sandbox. `npm run build && npm start` is the path that works everywhere. |
+| R12 | No headless Chromium, Playwright or Puppeteer on this machine, and the snap-packaged Firefox needs `cap_dac_override` to start (so it cannot run inside the sandbox) | Screenshots are captured through Firefox's WebDriver BiDi endpoint (`--headless --remote-debugging-port`), one session per browser instance, with an explicit settle before the capture because every page is fed by the WebSocket rather than the initial HTML. The scripts are throwaway and stay out of the repository. |
 
 ---
 
 ## Open Items / Questions
 
-- [ ] **Submission repository.** The graded repository must be named `<student-number>-sdp-exam-2026`
-      and be private on `sdp.ms.wits.ac.za`; it is scanned at lunch and 30 minutes before the end. This
-      workspace currently points at `SDP_Exam`, which **will not be detected**. Student number required.
+- [ ] **Submission repository.** Student number **2800269**, so the graded repository must be
+      `2800269-sdp-exam-2026` and be private on `sdp.ms.wits.ac.za`; it is scanned at lunch and 30
+      minutes before the end. This workspace is still on
+      `origin → https://sdp.ms.wits.ac.za/YMegersa/SDP_Exam.git`, which **will not be detected**. From a
+      network that can reach the host:
+
+      ```bash
+      git remote set-url origin https://sdp.ms.wits.ac.za/<namespace>/2800269-sdp-exam-2026.git
+      git push -u origin main
+      ```
+
+      The development sandbox answers `502` to every request to that host, so creating the repository,
+      renaming the remote and pushing all have to happen outside it.
+- [ ] **Uncommitted work.** The 97-test suite, the service-plugin refactor, `docs/` (planning set and
+      screenshots) and the fixes from the screenshot review are still uncommitted in this working tree.
 - [ ] Brief §3.1 planning answers still to be written up in their own words: "What is MQTT / how does it
       work", "initial architecture", "why a bespoke solution over off-the-shelf", "what should the
       application look like". (The stack/service/order/storage answers are captured in D1–D5 above.)
 - [ ] Confirm whether the graded repo is developed in directly or mirrored from this workspace.
+- [x] Screenshots of the five routes for this README — six, with the overview — captured from the live
+      platform and embedded above; reviewing them found and fixed four defects (see Progress Log).
 
 ---
 
@@ -404,8 +617,8 @@ produced **D-9** (survey and vitals payloads lose their crew attribution — `Li
 envelope `entity`) and **D-10** (the MHE and OPG pages hard-code thresholds that contradict the limits
 the ARL API serves). Both are recorded in `00` §6 with the file that fixes them.
 
-Register naming, since three registers share letters: `D1`–`D8` are **decisions** (Decision Register),
-`D-1`–`D-10` are **defects** (`00` §6), and `R1`–`R11` are **risks** (Known Issues).
+Register naming, since three registers share letters: `D1`–`D14` are **decisions** (Decision Register),
+`D-1`–`D-10` are **defects** (`00` §6), and `R1`–`R12` are **risks** (Known Issues).
 
 ---
 

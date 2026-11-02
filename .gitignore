@@ -13,6 +13,9 @@ coverage/
 .vite/
 .logs/
 
+# Scratch: the screenshot capture harness and the throwaway Firefox profile it drives.
+.shot/
+
 # Vendor ARL archives: the extracted Services/ directories are tracked instead.
 Services/*.zip
 Services/*.tar.gz
