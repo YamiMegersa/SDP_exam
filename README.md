@@ -39,7 +39,7 @@ The exam requires three of the five ARL services. **Selected:**
 | Platform | 5% | Architecture | — | Implemented (shared shell + service plugins) |
 | Platform | 5% | Security | — | Implemented, verified (403/503 gates) |
 | Platform | 2.5% | UI / UX | — | Implemented, conformant to `Front-end components/DESIGN_SYSTEM.md` (D16) |
-| Platform | 2.5% | Testing | — | 126 tests, 10 files, passing |
+| Platform | 2.5% | Testing | — | 161 tests, 12 files, passing |
 
 Implementation order: **RTA → OPG → MHE**. The shared shell (ingestion, persistence, alerts, replay,
 websocket push) is built first and is generic; each service then plugs in.

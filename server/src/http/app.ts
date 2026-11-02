@@ -8,6 +8,7 @@ import type { Config } from '../config';
 import type { Store } from '../db/store';
 import { latestStates, series, serviceCounts, timeRange } from '../db/queries';
 import type { Ingest } from '../mqtt/ingest';
+import type { PlatformBus } from '../platform/events';
 import type { ReplayService } from '../replay/session';
 import { deriveAll } from '../services';
 import type { TopologyRegistry } from '../topology/registry';
@@ -26,6 +27,7 @@ export interface AppDeps {
   api: ArlApi;
   replay: ReplayService;
   clock: SimClock;
+  bus: PlatformBus;
   startedAt: number;
 }
 
@@ -262,6 +264,7 @@ export function createApp(deps: AppDeps): express.Express {
       wallTs: Date.now(),
     });
     if (!result.ok) return res.status(result.code).json({ error: result.error });
+    deps.bus.emit({ kind: 'alert', alert: result.alert, change: 'acknowledged' });
     res.json({ alert: result.alert });
   });
 
@@ -283,6 +286,7 @@ export function createApp(deps: AppDeps): express.Express {
       wallTs: Date.now(),
     });
     if (!result.ok) return res.status(result.code).json({ error: result.error });
+    deps.bus.emit({ kind: 'alert', alert: result.alert, change: 'resolved' });
     res.json({ alert: result.alert });
   });
 

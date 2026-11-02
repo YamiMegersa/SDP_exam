@@ -100,6 +100,51 @@ describe('service alert lifecycle', () => {
     expect(transition.action).toBe('cleared');
     expect(String(transition.note)).toMatch(/first observed as cleared/);
   });
+
+  it('clears audit fields when an alert is reopened', () => {
+    // Raise, acknowledge, and resolve an alert
+    apply(event());
+    store.acknowledgeAlert({
+      alertId: 'rta/dish-001/temperature',
+      researcher: 'arl-as3',
+      note: 'investigating',
+      ts: 1_050,
+      wallTs: 1_700_000_000_000,
+    });
+    store.resolveAlert({
+      alertId: 'rta/dish-001/temperature',
+      researcher: 'arl-as3',
+      resolution: 'fixed',
+      cause: 'hardware fault',
+      ts: 1_100,
+      wallTs: 1_700_000_000_000,
+    });
+
+    // Verify audit fields are populated
+    let alert = store.getAlert('rta/dish-001/temperature')!;
+    expect(alert.ack_ts).toBe(1_050);
+    expect(alert.ack_by).toBe('arl-as3');
+    expect(alert.resolved_ts).toBe(1_100);
+    expect(alert.resolved_by).toBe('arl-as3');
+    expect(alert.cause).toBe('hardware fault');
+
+    // Clear the alert
+    apply(event({ state: 'cleared' }), 1_200);
+
+    // Reopen the alert
+    apply(event({ value: 75 }), 1_300);
+
+    // Verify all audit fields are cleared
+    alert = store.getAlert('rta/dish-001/temperature')!;
+    expect(alert.status).toBe('raised');
+    expect(alert.ack_ts).toBeNull();
+    expect(alert.ack_by).toBeNull();
+    expect(alert.ack_note).toBeNull();
+    expect(alert.resolved_ts).toBeNull();
+    expect(alert.resolved_by).toBeNull();
+    expect(alert.resolution).toBeNull();
+    expect(alert.cause).toBeNull();
+  });
 });
 
 describe('researcher acknowledgement and resolution', () => {

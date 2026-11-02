@@ -5,6 +5,8 @@ import type { CommandService } from '../src/commands/service';
 import { Store } from '../src/db/store';
 import { createApp } from '../src/http/app';
 import type { Ingest } from '../src/mqtt/ingest';
+import { Bus } from '../src/platform/bus';
+import type { PlatformEvent } from '../src/platform/events';
 import { ReplayService } from '../src/replay/session';
 import { TopologyRegistry } from '../src/topology/registry';
 import { SimClock } from '../src/util/clock';
@@ -41,6 +43,7 @@ const fakeCommands = {
 let store: Store;
 let registry: TopologyRegistry;
 let replay: ReplayService;
+let bus: Bus<PlatformEvent>;
 let app: ReturnType<typeof createApp>;
 
 beforeEach(() => {
@@ -48,6 +51,7 @@ beforeEach(() => {
   registry = new TopologyRegistry(['rta', 'mhe', 'opg']);
   for (const topology of TOPOLOGIES) registry.set(topology);
   replay = new ReplayService(store);
+  bus = new Bus<PlatformEvent>();
   app = createApp({
     cfg: testConfig(),
     store,
@@ -57,6 +61,7 @@ beforeEach(() => {
     api: fakeApi,
     replay,
     clock: new SimClock(),
+    bus,
     startedAt: Date.now(),
   });
 

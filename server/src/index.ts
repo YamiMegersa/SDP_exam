@@ -57,6 +57,7 @@ async function main(): Promise<void> {
     api,
     replay,
     clock,
+    bus,
     startedAt,
   });
   const server = http.createServer(app);
