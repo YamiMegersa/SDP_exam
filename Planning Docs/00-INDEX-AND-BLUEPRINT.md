@@ -58,6 +58,7 @@ marked in four columns: **Data (30 %)**, **Control (30 %)**, **Visualisation (30
 | `13-WEB-LIVE-STORE.md` | Client store, rings, replay injection, reconnect | Working; needs derived selectors |
 | `14-WEB-SHARED-VISUALS.md` | Charts, primitives, scan imaging, alert action modal, command widgets | Working; needs presets |
 | `15-WEB-OPERATOR-FLOWS.md` | Presets, schedules, safe-command guards, comparison views | **Missing** |
+| `16-WEB-DESIGN-CONFORMANCE.md` | `DESIGN_SYSTEM.md` adopted as a contract: tokens, typography, four zones, per-service components, and the threshold conflicts between the style guide and the specifications | Partial |
 
 **Service plane**
 
@@ -80,10 +81,10 @@ marked in four columns: **Data (30 %)**, **Control (30 %)**, **Visualisation (30
 
 | File | Component | Status today |
 | :--- | :--- | :--- |
-| `50-CROSS-CUTTING-SECURITY.md` | Access control, fail-closed, input handling, secrets, audit | Working; needs hardening |
-| `51-CROSS-CUTTING-TESTING.md` | Unit, integration, fault-injection, README-runnable suite | **Missing** |
-| `52-SIMULATOR-HARNESS.md` | Podman compose, scenarios, speedup, fault drills | Manual only |
-| `53-DOCS-AND-SUBMISSION.md` | README discipline, repo hygiene, submission checkpoints | Working |
+| `50-SECURITY.md` | Access control, fail-closed, input handling, secrets, audit, resource limits | Working; needs hardening |
+| `51-TESTING.md` | Unit, integration, contract, fault drills; README-runnable suite | **Missing** |
+| `52-SIMULATOR-HARNESS.md` | Podman compose, scenarios, speedup rules, fixture capture, drill catalogue | Manual only |
+| `53-SUBMISSION-AND-README.md` | README claim audit, documentation map, repo hygiene, submission checkpoints | In progress |
 
 ---
 
@@ -128,6 +129,46 @@ Two clocks, never mixed:
 - **Wall clock (`recv_ts`)** — used only for ingestion health: silence detection, gap
   recovery, command timeout.
 
+### 2.1 The shared shell, stated as ports and adapters
+
+The project is a **modular shared shell**: one generic core, six ports, and a per-service adapter
+that carries everything service-specific. Hexagonal in the strict sense — the core never imports a
+service, and a service never reaches into the core.
+
+| Port | Adapter | Document |
+| :--- | :--- | :--- |
+| Inbound broker traffic | mqtt.js client → envelope normaliser → bus | `03` |
+| Inbound ARL API | axios client: verify, lookup, limits, targets, backlog | `10` |
+| Inbound browser | REST router | `08` |
+| Inbound browser (stream) | WebSocket server | `09` |
+| Outbound commands | MQTT publisher + ack correlator | `06` |
+| Storage | better-sqlite3, WAL, batched writer | `04` |
+| Time | injected `SimClock` (no `Date.now()` in tested code) | `01` |
+
+**On the "BaseService" abstraction.** The intent — one shared lifecycle, alert evaluation and
+control verification per service — is already satisfied by the core, which serves all three services
+through the same ingest, alert, command and replay path with no service conditionals. What must be
+shared is the **contract**, not the inheritance: a base class with three subclasses invites each
+subclass to hold the entity list (`100 dishes`, `9 rooms`, `5 crew`), which is precisely what
+convention 1 forbids and what breaks when a fixture changes. The contract is `ServiceAdapter`
+(`11` §3.1): label, accent, focal entities, measures, guards, presets, alert context. Its acceptance
+test is the boundary test — **delete every adapter file and the core still compiles**.
+
+### 2.2 Architecture claims reconciled with the specification
+
+Informal descriptions of this system have circulated with seven errors in them. They are recorded
+here, once, because each one is cheap to write down and expensive to implement.
+
+| Claim | What the ARL actually does | Cost of implementing the claim |
+| :--- | :--- | :--- |
+| "Subscribes to `arl/+/discovery` on boot to discover topic schemas" | Discovery **is** the retained `arl/<svc>/$topology`. No `discovery` topic exists. | Subscribes to a topic that never publishes: the platform looks connected and sees zero entities, zero alerts, zero controls |
+| "Payloads are tagged with microsecond-level timestamps" | Every `ts` in the protocol is epoch **milliseconds** | Charts, replay seeks and cross-service ordering off by a factor of 1 000 |
+| "Control via `POST /api/services/:id/control`" | `POST /api/commands {service, entity, control, value, researcher}`. The alert routes as described (`/api/alerts/:id/acknowledge|resolve`) are correct | An invented route. The control plane is topic-grammar-driven (`06`), not service-id-driven |
+| "Verifies `GET ${ARL_API}/researchers/:code` before executing any control" | The gate is `POST /v1/researchers/verify {code, service}`. The `GET` form is the *name lookup* and takes no service | Service scoping is never checked → Security sits at 50 % ("codes resolve correctly") instead of 75 % ("services are access protected"). See `06` §4.1.2 |
+| "Replay supports `1×, 2×, 5×, 10×`" | Both are true of different layers: `clampSpeed()` accepts 0.1–64, the design system offers four pills | Do not restrict the API to the pills — an MHE mission captured at 2000× needs faster seeks than 10× |
+| "100 dishes, 9 rooms, 5 crew" as constants | Counts come from `$topology` and from config (`num_dishes`, `crew_size`, `mission_days`) | A changed topology or a 3-crew fixture silently breaks the matrix, the ratio and the survey grid |
+| "Indexes on `(service, recorded_at)`" | Columns are `ts` (simulated) and `recv_ts` (wall clock). There is no `recorded_at` | Collapses the two-clock rule into one ambiguous column — the exact failure `01` and `07` exist to prevent |
+
 ---
 
 ## 3. Rubric mapping (what earns what)
@@ -139,10 +180,10 @@ Two clocks, never mixed:
 | OPG *or* OWT, service rubric | 17.5 % | `40`–`43` |
 | Alert system | 10 % | `05`, `14` (§ annunciator), `23`/`33`/`43` |
 | Replay system | 10 % | `07`, `12` (§ tray), `13` (§ replay injection) |
-| Architecture | 5 % | `01`–`11` |
+| Architecture | 5 % | `01`–`11`, `53` (§ claim audit — the 0 % band is "does not start from the README") |
 | Security | 5 % | `50` |
 | UI / UX | 2.5 % | `12`, `14`, `15` |
-| Testing | 2.5 % | `51` |
+| Testing | 2.5 % | `51`, `52` (the 100 % band needs the broker and faults, not coverage) |
 
 ### 3.1 Where the top band of each service criterion is earned
 
@@ -174,12 +215,12 @@ runnable at every checkpoint.
 
 | Block | Work | Checkpoint behaviour |
 | :--- | :--- | :--- |
-| **A** | `51` (test rig + first suites), `01`, `04` migrations, `11` skeleton | `npm test` green; platform runs |
+| **A** | `52` harness (`stack.sh` first), `51` (test rig + first suites), `01`, `04` migrations, `11` skeleton | `npm test` green; `stack.sh up` reaches three topologies; platform runs |
 | **B** | `20`–`23` RTA complete (image cleaning, band compare, presets) | RTA reachable at 100 % of data/vis |
 | **C** | `40`–`43` OPG complete (fast to finish; 1-minute cadence) | Second service graded |
 | **D** | `30`–`33` MHE complete (slowest: 5-minute cadence) | Third service graded |
 | **E** | `07` replay integration, `05` alert context, `15` flows | Replay + alert bands to 100 % |
-| **F** | `50` security review, `53` README + submission | Repo clean, README runnable |
+| **F** | `50` security review, `52` drills recorded, `53` README + submission | Repo clean, README runnable, drill results logged |
 
 Do not start a later block by breaking an earlier one. The platform must stay runnable
 after every merged change, because the grader may clone at lunch.
@@ -209,6 +250,12 @@ These apply to every document below; they are stated once here so they are not r
 7. **Simulator time is the display clock.** Never render `Date.now()` where a `ts` exists.
 8. **One derived value, one definition.** If a number appears in two places, it is computed
    in one place (`11` for server-side, `13` for client-side) and imported.
+9. **The design system's numbers are illustrations; the API's numbers are thresholds.**
+   `DESIGN_SYSTEM.md` writes "CO₂ > 1200 ppm", "overheat > 75 °C", "SOC < 15 %" as examples of a
+   *colour rule*, and those figures disagree with the service limits (1 500/2 500 ppm; 333/343 K;
+   30 % and "below the reserve"). The colour rule is authoritative; the figure must be read from
+   `GET /v1/alert-limits/<service>`. This is exactly how D-10 was born, and `16` is the audit that
+   keeps it from recurring.
 
 ---
 
@@ -224,6 +271,18 @@ These apply to every document below; they are stated once here so they are not r
 | D-6 | Alert rows show value/limit but not neighbours, causes or remedial controls | `web/src/components/Annunciator.tsx` | `05`, `23`/`33`/`43` |
 | D-7 | No aggregate/derived series endpoint; the chart backfill path skips `entity === '*'` | `server/src/db/queries.ts`, `web/src/lib/hooks.ts` | `04`, `11` |
 | D-8 | Replay does not surface the alert and event stream inside the replay context | `server/src/replay/session.ts`, `web/src/pages/Replay.tsx` | `07` |
+| D-9 | `LiveEvent` drops the envelope `entity`, and survey events are per-crew flat payloads while `CrewStrip` reads `payload.surveys ?? payload` as a map — so one crew member's mood and stress appear on every card | `web/src/lib/live.ts`, `web/src/pages/Mhe.tsx` | `13`, `30` (§4.1) |
+| D-10 | Thresholds hard-coded in the pages contradict the API limits: MHE CO₂ 1000/1200 vs 1500/2500; MHE clinical 110/50 bpm, 310.15 K, 94 % vs 40/150 bpm, 311.15 K, 92 %; RTA `HOT_K = 348.15` (75 °C) vs warn 333 K / crit 343 K; OPG SOC 15/25/50 vs warn below 30 % and crit below the reserve; OPG `fuel < 20` vs a 25 % limit. The design system's own example figures are the source | `web/src/pages/Mhe.tsx:21`, `web/src/pages/Rta.tsx:37`, `web/src/pages/Opg.tsx:256`, `web/src/pages/Opg.tsx` fuel check | `16` (§4.6), `22`, `32`, `33`, `42`, `43` |
+
+### 6.1 Register naming
+
+Three registers in this project use three letters. They must not be confused:
+
+| Form | Means | Lives in |
+| :--- | :--- | :--- |
+| `D1`…`D8` | A **decision** — what was chosen and why | `README.md` § Decision Register |
+| `D-1`…`D-10` | A **defect** — what is wrong in the foundation, and which document fixes it | this section |
+| `R1`…`R11` | A **risk** — what could go wrong, and the mitigation | `README.md` § Known Issues |
 
 ---
 

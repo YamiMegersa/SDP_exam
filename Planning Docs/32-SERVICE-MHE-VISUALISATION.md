@@ -16,6 +16,16 @@ beyond a table, e.g. drill down, comparison, correlation, derived views"*.
 The 75 % band is the floor plan drawn from the facility's own drawing and coloured by a hazard
 derived from the service's own limits. §5 is the 100 % band.
 
+**Conformance.** What is *encoded* is decided here; how it is *drawn* is decided by
+`DESIGN_SYSTEM.md` §5.2 and audited by `16`. Three consequences for this document. The nine
+compartments are named exactly as the guide names them (`quarters-1`…`quarters-5`, `common`, `lab`,
+`hydroponics`, `airlock`) and the airlock carries the guide's `PRESSURIZED` / `DEPRESSURIZED` pill in
+caps, not a legend swatch. Every room card shows occupancy as a badge, because headcount is a
+derived measure (`11` `mhe.headcount`) and a room without its people is a different fact. And every
+limit named below is read from `GET /api/alert-limits/mhe` — `air.co2_warn_ppm`,
+`air.co2_crit_ppm`, `air.o2_min_ppm`, `room.temp_min_k`/`temp_max_k` — never a literal, which is the
+whole of `16` §4.6 and the reason D-10 exists.
+
 ---
 
 ## 1. Workspace layout
@@ -96,7 +106,7 @@ severity = max over criteria of  frac deviation
   sealed/unoccupied rules applied: occupancy 0 ⇒ no CO₂ criterion
 ```
 
-- Fill below 0 → `--ok`; 0–1 → `--warn` interpolated; ≥ 1 → `--crit` with the 12 px glow.
+- Fill below 0 → `--nominal`; 0–1 → `--caution` interpolated; ≥ 1 → `--alarm` with the 12 px glow.
 - The plan therefore degrades exactly as the service's own alerts do, because both read the same
   limit values from `10`.
 - A room out of spec only because it is *empty and cold* still lights up — correctly, since
@@ -154,6 +164,30 @@ stress is bad), with the 7-day mean beneath and a sparkline.
 
 **Acceptance.** A crew member whose wearable stops shows a stale badge within 2 minutes and a
 `crew_status` warning at 5, and their survey cells remain readable.
+
+### 4.1 The biometric strip (design system §5.2)
+
+Five cards above the matrix, one per crew member: avatar, crew id, heart rate with an animated
+rhythm pulse line, and body temperature. The four survey values appear as 4-bar horizontal
+micro-meters (mood, stress, fatigue, sleep) which flash caution at ≥ 9 — `MicroMeter` already
+defaults to `caution = 9`, so this is a wiring job, not a new component.
+
+- **The pulse line must be driven by the sampled rate**, not by a CSS animation with a fixed
+  period. Sixty bpm and one-forty must look different, because that difference is the entire reason
+the line is drawn rather than the number printed twice.
+- **Blend the line rather than flickering it.** Interpolate between the last two samples so that a
+  dropped sample stretches the beat instead of stuttering it; a heart monitor that freezes on a
+  missed packet is a false alarm.
+- **Fix D-9 first.** Survey events arrive per crew member while `CrewStrip` reads
+  `payload.surveys ?? payload` as a map, so one person's mood currently appears on all five cards
+  and the four meters are decorative. A flash at ≥ 9 on five identical bars tells the operator
+  nothing.
+- Temperature bands come from `crew.temp_max_k` (311.15 K) and the low limit, not from the design
+  system's example figures (`16` §4.6).
+
+**Acceptance.** Raising one crew member's heart rate changes only that card's pulse period; a
+survey value of 9 flashes on that card alone; a crew member at 312 K shows a critical temperature
+while their neighbour at 309 K does not.
 
 ---
 

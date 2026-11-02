@@ -20,6 +20,14 @@ In scope: parsing, indexing, validating and describing the `$topology` document;
 a proposed control value against the declared schema. Out of scope: subscribing to the topic
 (`03`), persisting the JSON (`04`), deciding whether a command is *allowed* (`06`).
 
+> **Discovery is `$topology`, and nothing else.** There is no `arl/+/discovery` topic in the ARL.
+> The retained `arl/<svc>/$topology` document is the only discovery mechanism: it is per service,
+> versioned, re-published whenever entities, streams or controls change, and delivered to every
+> new subscriber because it is retained. An implementation that waits for a `discovery` topic
+> subscribes to nothing and discovers nothing — it will look connected and see no entities. This
+> is stated first because the topic name appears in informal architecture descriptions and is
+> wrong every time it does.
+
 ---
 
 ## 2. Current foundation
@@ -120,8 +128,9 @@ fields plus required fields. `set()` reports `changed` by comparing version and 
     primaryStream: StreamDef | null;      // scan > normal for rta; power / environment / vitals
     periodicStreams: StreamDef[];
     controlsByEntityKind: Map<string, ControlDef[]>;
-    alertLimitKeys: string[];             // derived from $topology control/state names? no:
-                                          // from observed alert payloads, see 05
+    alertLimitKeys: string[];             // from observed alert payloads, see 05 — the
+                                          // topology names controls, not limit keys; the
+                                          // ARL API is the single source of truth for those
   }
   ```
 - **Steps.** Implement in `11` (`serviceAdapters.ts`), consuming the registry; the registry

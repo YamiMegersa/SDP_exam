@@ -51,6 +51,30 @@ Every measure below answers one of those.
 
 ## 3. Decomposition
 
+### 3.0 What already runs
+
+`server/src/derived/measures.ts` implements seven measures today, and they are the spine of the
+researcher story — not a sketch. The rest of this document extends them; nothing here replaces them.
+
+| Implemented key | The question it answers | Planned successor |
+| :--- | :--- | :--- |
+| RTA `active_ratio` | How much of the array is usable right now (`N_active / N_total`, taken from topology, not the literal 100) | `rta.uptime` (§3.3) |
+| RTA pointing distance | Is the array actually on target (commanded vs reported az/el)? | `rta.pointing_error` |
+| RTA `scan_progress` | Will this scan finish? | `rta.scan_progress` |
+| MHE headcount vs rated crew | Is anyone unaccounted for (`Σ room crew_count` vs `crew_size`)? | `mhe.headcount` (§3.4) — keep as-is and name it |
+| MHE mean heart rate at a CO₂ level | How stressed is the crew, and at what air? | `mhe.stress_vs_co2` (§3.4) |
+| OPG `P_solar + P_diesel − P_load` | Is the plant covering its load? | `opg.margin` (§3.5) — this is the design system's ΔP HUD |
+| OPG hours above reserve at current draw | How long until the batteries reach the reserve? | `opg.time_to_reserve` |
+
+Two properties of the existing implementation are worth preserving deliberately, because they are
+what makes these measures trustworthy:
+
+- **Every measure reports its `inputs`**, so the arithmetic can be checked by eye on the card
+  rather than trusted. A measure that cannot list its inputs is a black box and should not ship.
+- **Verdicts lean on the service's own limits** (`GET /v1/alert-limits/:service`) and degrade to
+  `unknown` when a limit is missing, rather than inventing a threshold. This is convention 9 in `00`
+  applied at the point where it matters most.
+
 ### 3.1 Adapter registry
 
 #### 3.1.1 Registration
@@ -139,11 +163,14 @@ interface ServiceAdapter {
 | `mhe.crew_health` | breakdown | Who needs attention now? | Per crew: latest vitals, count of limits breached, minutes since the last vitals, current `location`, and whether a wellness check is in flight. |
 | `mhe.hydroponics_yield` | series | Will the crop make it? | `estimated_yield_kg` per day against the growth stage, with reservoir `water_level_l`, `nutrient_ec_mscm` and `water_ph` plotted as the driving variables. |
 | `mhe.survey_compliance` | scalar | Are we getting the data the experiment needs? | Completed surveys over expected (2 per crew per day) for the window, plus per-crew missed counts. |
+| `mhe.headcount` | scalar | Is anyone unaccounted for? | `Σ rooms.crew_count` against rated crew from config (`crew_size`, default 5 — never a literal). Verdict crit when the sum is below the rated crew and no crew member is `outside`; warn when it disagrees with the sum of per-crew `location` values. `inputs`: the per-room counts and the outside count, so a discrepancy is traceable to a room rather than reported as a number. |
+| `mhe.stress_vs_co2` | breakdown | Is the crew's stress explained by the air? | Per room: the mean of each occupant's latest `heart_rate_bpm` (normalised against the crew's own 7-day baseline) plotted against the room's ambient `co2_ppm` over the same window, with n per cell. Reports the Pearson correlation and **refuses to state one below n = 10 pairs** — at a 5-minute room cadence and a 1-minute vitals cadence a correlation over a short window is noise. This is the measure behind `32`'s scatter and `33`'s cross-signal relation. |
 
 ### 3.5 OPG measures
 
 | Key | Kind | Answers | Computation |
 | :--- | :--- | :--- | :--- |
+| `opg.margin` | scalar | Is the plant covering its load right now? | `P_solar + P_diesel − P_load` at the latest sample, in kW, signed: positive = charging the bank, negative = discharging. This is the ΔP HUD in `DESIGN_SYSTEM.md` §5.3 and the same figure the flow diagram animates, so it is defined once (`00` convention 8). Verdict: `ok` when ≥ 0, `warn` when negative but the bank is above the reserve, `crit` when negative and below it. `inputs`: the three powers and the SOC. |
 | `opg.energy_balance` | series | Where did the energy come from? | Per bucket, kWh in and out per source: `solar/1e3 × dt`, `diesel/1e3 × dt`, battery signed, load. Stacked. Summary: total kWh, renewable fraction, diesel litres (from `runtime_h` delta × consumption) . |
 | `opg.time_to_reserve` | scalar | How long until the batteries hit the reserve? | From the last 15 minutes of `battery_power_w`, the net discharge rate, and `(soc − reserve)/100 × battery_kwh`. Returns `null` with verdict `ok` when charging. Verdict warn under 60 min, crit under 15 min. |
 | `opg.storm_cost` | scalar | What did the storm cost? | Correlates an LWM storm window (if present) with the solar deficit against `opg.solar.min_ratio` and the diesel kWh generated in the same window. Without LWM, uses the OPG `solar_underperformance` alerts as the window. |

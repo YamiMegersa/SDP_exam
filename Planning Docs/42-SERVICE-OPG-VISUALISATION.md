@@ -16,6 +16,14 @@ The floor plan is MHE's structural view; **the energy flow diagram is OPG's**. I
 actual topology — solar in from the array, diesel in from the generators, a bidirectional battery
 branch, one bus, one load — and it is already the best thing on the existing page.
 
+**Conformance.** What is *encoded* is decided here; how it is *drawn* is decided by
+`DESIGN_SYSTEM.md` §5.3 and audited by `16`. Three things follow. The diagram keeps the guide's node
+roles exactly (Solar PV → Inverter/Bus ↔ Battery ← Diesel, bus ↓ lab load). The SOC gauge is
+the guide's **segmented** bar, not a smooth one — ten segments read as a quantity while a smooth bar
+reads as a percentage — and its band breaks are `battery.warn_pct` and `reserve_pct`, not the
+guide's illustrative 50/25/15 (which, as written, leave 15–25 % undefined; see `16` §4.6). The ΔP
+HUD is the guide's large signed readout and passes `opg.margin` through unchanged.
+
 ---
 
 ## 1. Workspace layout
@@ -141,6 +149,32 @@ is where the generators start.
 
 **Acceptance.** During a night-time drain the projection reaches the reserve line within a bucket of
 the actual generator start; a reserve change mid-window appears as a step in the dashed line.
+
+### 4.1 The segmented gauge (design system §5.3)
+
+The trajectory answers "what happened"; the gauge answers "how long have I got" in the two seconds
+an operator will actually give it. Ten segments, filled from the bottom, coloured by band, with
+`t_remaining` printed beside it.
+
+| Band | Boundary | Treatment |
+| :--- | :--- | :--- |
+| comfortable | above `battery.warn_pct` (30 %) | emerald |
+| caution | at or below `battery.warn_pct`, above `reserve_pct` | amber |
+| critical | at or below `reserve_pct` | crimson, blinking at 1.2 s, with the band label "below reserve" |
+
+- **Show `t_remaining` at every band, not only the lowest.** The operator deciding whether to shed
+  load needs "3.1 h at the current 280 kW" *before* the alarm, and a number that only appears at
+  the reserve is a number that appears too late.
+- **Blink once, not twice.** The gauge blinks at the reserve and the alert annunciator flashes for
+  `low_battery`; two blinking things on one screen compete. The gauge's blink is shorter and
+  slower than the annunciator's 1.5 Hz so the hierarchy survives.
+- **The reserve boundary is a property of the day, not a constant.** `reserve_pct` is settable and
+  appears in the state history, so a bar that assumes 20 % is wrong the moment a researcher raises
+  it (`41`).
+
+**Acceptance.** Setting `soc_pct` to 25 with a 30 % warn and 20 % reserve shows amber with a
+projection; setting it to 19 shows crimson blinking with the words "below reserve"; raising the
+reserve to 40 turns the same SOC crimson without any code change.
 
 ---
 

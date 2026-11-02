@@ -25,6 +25,15 @@ deciding what a message *means* for a service (`11`) and what an alert *is* (`05
 
 - Five subscriptions, QoS 1: `arl/+/$topology`, `arl/+/+/telemetry/+`, `arl/+/+/state/+`,
   `arl/+/events/+`, `arl/+/ack/+`.
+- **These five are discovery.** There is no separate discovery step and no `arl/+/discovery`
+  topic: the retained `$topology` arrives on subscribe and is the schema for everything else. The
+  filters are constant and service-agnostic; nothing about a service is known before the first
+  `$topology` message, which is why the topology path in `dispatch()` runs before the registry
+  lookup and why orphan messages are held rather than dropped (`§4.3`).
+- **Timestamps are milliseconds.** The envelope `ts`, state `ts` and event `ts` are epoch
+  milliseconds, as the specifications define them. There is no microsecond field anywhere in the
+  protocol; sub-millisecond precision would be invented and would break every chart and every
+  replay seek by a factor of a thousand.
 - Reconnect every 2 s; `queueQoSZero: false`; commands reject with `broker_unavailable` when
   not connected.
 - Topology handled before registry lookup; unmatched messages held in an orphan buffer capped

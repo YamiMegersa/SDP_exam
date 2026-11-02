@@ -12,6 +12,13 @@ they happen (see [Progress Log](#progress-log) and [Decision Register](#decision
 > Running the platform: see [Running the Platform](#running-the-platform).
 > Running the tests: see [Testing](#testing).
 
+**Implementation plan.** The project is dismantled — first into components, then each component into
+subsystems and subcomponents — across the numbered documents in `Planning Docs/`. Begin at
+`Planning Docs/00-INDEX-AND-BLUEPRINT.md` for the file map, the rubric mapping, the defect register and
+the delivery order. Three reading paths: *does it work?* → `00` then `52` §4.7 (drill results); *how is
+RTA data handled?* → `20` → `03` → `04` → `11` → `22`; *where is the evidence for a rubric line?* →
+`00` §3 and `53` §4.5.
+
 ---
 
 ## Scope
@@ -262,6 +269,14 @@ Strategy (and the reasoning behind it):
   are tested end-to-end. Simulated faults (`ARL_SCENARIO`) drive the alert rules with real payloads
   rather than fixtures.
 
+**Status.** The suite above is **planned, not yet implemented**. `vitest` and `supertest` are installed
+and `npm test` is wired to `vitest run`, but no test files exist yet, so the command currently reports
+"no test files found" (defect D-1). The order in which the tests will be written — thirty of them,
+ranked by marks per hour — the fixture strategy, and the drill catalogue that runs against the test
+broker with controls enabled and simulated faults are specified in `Planning Docs/51-TESTING.md` and
+`Planning Docs/52-SIMULATOR-HARNESS.md`. `npm test` starts working the moment the first of those files
+lands, and this note is deleted at that point.
+
 ---
 
 ## Security Decisions
@@ -363,6 +378,34 @@ Newest first. Each entry: what changed, and why if non-obvious.
       work", "initial architecture", "why a bespoke solution over off-the-shelf", "what should the
       application look like". (The stack/service/order/storage answers are captured in D1–D5 above.)
 - [ ] Confirm whether the graded repo is developed in directly or mirrored from this workspace.
+
+---
+
+## Component Map
+
+`Planning Docs/` holds one planning document per component, and one per service criterion. The
+decomposition is deliberate: a service is worked as four documents in rubric order (Data → Control →
+Visualisation → Alerts), because the service rubric is marked in those four columns.
+
+| Plane | Documents | Covers |
+| --- | --- | --- |
+| Orientation | `00` | File map, rubric map, defect register D-1…D-10, delivery order |
+| Platform | `01`–`11` | Runtime, topology registry, MQTT ingest, store, alert system, control plane, replay, REST, WebSocket, ARL API client, derived measures |
+| Client | `12`–`15` | Shell and design system, live store, shared visuals, operator flows |
+| RTA (30 %) | `20`–`23` | Data, controls, visualisation, alerts |
+| MHE (17.5 %) | `30`–`33` | Data, controls, visualisation, alerts |
+| OPG (17.5 %) | `40`–`43` | Data, controls, visualisation, alerts |
+| Assurance | `50`–`53` | Security, testing, simulator harness, submission and README discipline |
+
+Two things about the set are worth knowing before reading it. First, it is a plan, so a section
+marked as a fix is not a claim that the fix exists — the `Status today` column in `00` §1.1 says what
+is real. Second, writing it changed the code: comparing the specifications against the existing pages
+produced **D-9** (survey and vitals payloads lose their crew attribution — `LiveEvent` drops the
+envelope `entity`) and **D-10** (the MHE and OPG pages hard-code thresholds that contradict the limits
+the ARL API serves). Both are recorded in `00` §6 with the file that fixes them.
+
+Register naming, since three registers share letters: `D1`–`D8` are **decisions** (Decision Register),
+`D-1`–`D-10` are **defects** (`00` §6), and `R1`–`R11` are **risks** (Known Issues).
 
 ---
 

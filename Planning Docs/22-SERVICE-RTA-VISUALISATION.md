@@ -18,6 +18,15 @@ The 75 % band is the dish matrix laid out as the actual array and an image built
 sample geometry — both are "informed by service structure", not generic charts. The 100 % band is
 §5 below.
 
+**Conformance.** What is *encoded* is decided here; how it is *drawn* is decided by
+`DESIGN_SYSTEM.md` §5.1 and audited by `16`. That division matters for exactly three things in this
+document: the grid is 10 × 10 with 24 px tiles, the scan ramp is the guide's five-stop cyan→amber
+(already implemented verbatim in `imaging.ts`), and **stowed is the one state that animates** — the
+guide says "amber pulsing" for stow and merely "red border" for overheat, so the animation budget is
+spent on the state that means *the array is doing nothing*, and critical carries a static glow
+instead. Every temperature and threshold named below is read from `GET /api/alert-limits/rta`
+(`dish_temperature.warn_k` / `crit_k`), never written as a literal — `16` §4.6.
+
 ---
 
 ## 1. Workspace layout
@@ -91,14 +100,15 @@ main (79)                        auto-2 (21)
 
 | Aspect | Encoding | Rule |
 | :--- | :--- | :--- |
-| Fill | status token | ok = `--ok`; stowed = `--warn` outlined; fault = `--crit` with glow; disabled = `--inert`; unknown/dark = `--unknown` dashed |
-| Border | temperature band | ok below `dish_temperature.warn_k` (333 K) / warn / crit at 343 K, from the API limits, not hard-coded |
-| Corner marker | stowed | a 4×4 px triangle in the top-right |
-| Pulse | overheat | a 2 s pulse on cells above the crit limit only (never the whole grid) |
-| Label | id | last two digits, monospace, only when the cell is ≥ 28 px wide |
+| Fill | status token | ok = `--nominal`; stowed = `--caution`; fault = `--alarm` with `--crit-glow`; disabled = `--inert`; unknown = dashed outline, no fill |
+| Border | temperature band | ok below `dish_temperature.warn_k` (333 K); warn from 333 K; crit at `crit_k` (343 K) — both from the API limits, never literals |
+| Pulse | stowed | amber pulse at the guide's `led-caution` cadence, on stowed cells only. Overheat is static; two animated states in a 100-tile grid is a Christmas tree |
+| Corner marker | stowed | a 4×4 px triangle in the top-right, so stow survives a greyscale screenshot |
+| Label | id | last two digits, monospace, in the labelled layout only (cells ≥ 28 px). At the guide's 24 px the id is hover-only |
 
 **Acceptance.** A dish at 344 K with `fault_code: overheat` is visually distinct from one at 344 K
-with `fault_code: none`, because fault and heat are different problems.
+with `fault_code: none`, because fault and heat are different problems — the first fills red and
+glows, the second only borders red. A stowed dish pulses and a merely faulty one does not.
 
 ### 3.3 Interaction
 

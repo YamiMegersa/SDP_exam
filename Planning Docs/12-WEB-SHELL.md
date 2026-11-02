@@ -10,7 +10,7 @@ annunciator mount, navigation with per-service status, and the persistent operat
 *"information prioritised for an operator, with alerts always visible"*, *"stays usable under
 fault conditions, e.g. many alerts or services offline"*.
 
-**Depends on.** `13` (store), `08`, `14`.
+**Depends on.** `13` (store), `08`, `14`, `16` (the contract this frame is checked against).
 
 ---
 
@@ -69,12 +69,17 @@ shows sample and gap counts.
 #### 4.1.2 Theme and tokens
 
 - **Responsibility.** One source for every colour, so status colour means status.
-- **Contract.** CSS custom properties in `index.css` from the design system: `--bg`, `--panel`,
-  `--elev`, `--border`, `--hover`, `--ok`, `--warn`, `--crit`, `--ack`, `--inert`, and accents
-  `--rta`, `--mhe`, `--opg`, `--replay`. Tailwind consumes them via `theme.extend.colors`.
-- **Steps.** Never use a raw hex in a component. Add `--crit-glow: 0 0 12px rgba(239,68,68,.5)`
-  and the `.arl-panel`, `.led-nominal`, `.led-alert`, `.telemetry-readout` utility classes from
-  the design system's §8.
+- **Contract.** CSS custom properties in `index.css`, two names for each design system colour: the
+  guide's vocabulary (`--bg`, `--elev`, `--border`, `--hover`, `--ok`, `--warn`, `--crit`, `--ack`)
+  and the names `index.css` actually uses (`--void`, `--panel`, `--panel-edge`, `--nominal`,
+  `--caution`, `--alarm`, `--in-hand`), plus `--inert` and the accents `--rta`, `--mhe`, `--opg`,
+  `--replay`, which already agree. Tailwind consumes the same values via `theme.extend.colors`.
+  `16` §4.1.1 is the authority on the list; this section only says where it lives.
+- **Steps.** Never use a raw hex in a component. Add the missing guide aliases rather than renaming
+  the existing properties — a rename touches every file and buys nothing a reader can see — and add
+  `--crit-glow: 0 0 12px rgba(239,68,68,.5)` and the `.arl-panel`, `.led-nominal`, `.led-alert`,
+  `.telemetry-readout` utility classes from the design system's §8. `.led-alert` is the guide's
+  name for what the code calls `.led-alarm`; keep the alias, then delete the old name.
 - **Acceptance.** A grep for `#` in `web/src/components` and `web/src/pages` finds no colour
   literal outside `index.css`.
 
@@ -97,6 +102,11 @@ shows sample and gap counts.
 - **Responsibility.** Say *when* the numbers are from.
 - **Contract.** The pill reads `LIVE` (slate) or `HISTORICAL REPLAY — 2x (PAUSED)` (purple);
   the clock shows simulator time with the service it is tracking when the services disagree.
+- **Chromatic shift.** Entering replay moves the whole top bar from `#0a0d14` to `#2e1065` over
+  `#581c87`, as the design system's §7 requires. Implement it as `data-mode="replay"` on the shell
+  root with token overrides in `index.css`, not as conditional classes threaded through components —
+  a mode that a newly added child can forget to honour is a mode that will be forgotten (`16`
+  §4.5.1).
 - **Steps.** In replay the clock shows `virtualNow`, not the live clock, and gains a purple
   underline.
 - **Acceptance.** Entering replay changes the pill and the clock in the same frame; leaving
@@ -110,6 +120,11 @@ shows sample and gap counts.
   the directory, red when the API rejects it for the current service.
 - **Steps.** Debounce lookup by 400 ms. Never block navigation on the lookup. The value is
   passed into every command and every alert action, so a page cannot invent its own.
+- **Placement.** The design system puts the operator in **Zone 3**, "service navigation and
+  researcher context", not in the header. This section sits under the header subsystem because it
+  is chrome, but the component belongs in the nav bar: a researcher code living among ingest
+  counters reads as a debug field, and the code is not diagnostics — it is the identity that
+  authorises every action the console can take.
 - **Acceptance.** Changing the code on the Overview changes the code used by a command sent from
   the RTA page without a reload.
 
@@ -144,8 +159,10 @@ shows sample and gap counts.
 - **Responsibility.** Make the time machine reachable from anywhere, which is what the design
   system's Zone 1 asks for.
 - **Contract.** Visible only while a session is active. Contains: rewind, step-back, play/pause,
-  step-forward, speed pills `1x 2x 5x 10x 32x`, a scrubber with alert ticks, the window label,
-  and a `LIVE` button.
+  step-forward, speed pills `1x 2x 5x 10x`, a scrubber with alert ticks, the window label, and a
+  `LIVE` button that is visually distinct from the four rate pills because it is an exit, not a
+  rate. The design system's §7 specifies exactly `[ << Rewind ] [ 1x ] [ 2x ] [ 5x ] [ 10x ] [ LIVE ]`;
+  a fifth multiplier invites the operator to wonder why there is not a sixth (`16` §4.5.3).
 - **Steps.** The scrubber is a range input over `[from, to]`; dragging seeks (throttled to 4 Hz)
   and shows the target time in a floating label. Alert ticks are coloured by the highest severity
   of the alerts at that timestamp.

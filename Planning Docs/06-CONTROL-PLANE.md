@@ -80,6 +80,19 @@ event and logs terminal states. `expire()` settles timeouts after 45 s.
 - **Contract.** `api.verify(code, service)` → `{ valid, reason, researcher }`. Cache the
   result for `RESEARCHER_CACHE_TTL_S` (60 s) keyed by `code|service`, including negatives, so
   a defunct researcher cannot hammer the API.
+- **Two endpoints, one of which is the gate.** The ARL API offers both of these, and they are not
+  interchangeable:
+
+  | API call | Answers | May it gate a command? |
+  | :--- | :--- | :--- |
+  | `POST /v1/researchers/verify` with `{code, service}` | *May this code control this service?*, with `reason` = `unknown` / `defunct` / `not_permitted` | **Yes — this is the only gate** |
+  | `GET /v1/researchers/{code}` | *Who is this code?* (name, experiments, status) — no service argument | **No.** It cannot answer `not_permitted` for a specific service |
+
+  Using the lookup as the gate is the specific mistake that costs the Security criterion its 75 %
+  band: the researcher resolves correctly (≤ 50 % "codes resolve correctly via the ARL API") but
+  service scoping is never checked, so "services are access protected" is unearned. `client.ts`
+  keeps the lookup for display and for attributing an acknowledgement to a name, and uses `verify`
+  for every dispatch.
 - **Steps.** Fail closed: a transport error is 503, never "allow". Persist the researcher
   record on success so the UI can show a name.
 - **Acceptance.** `arl-as3` (rta+mhe+opg) can command all three; a code scoped only to `lwm`

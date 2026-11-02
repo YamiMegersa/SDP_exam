@@ -12,7 +12,8 @@ assembled from these; none of them contains service logic.
 **Rubric.** Visualisation 30 % per service (the primitives are how the top band is reached);
 Alert system 10 %; UI/UX 2.5 %.
 
-**Depends on.** `13`, design system.
+**Depends on.** `13`, design system, `16` (the conformance contract these primitives are audited
+against).
 
 ---
 
@@ -115,6 +116,13 @@ cause select, note/resolution (3–500 chars). `commands.tsx`: `useCommand()` po
   { fg, bg, border, glow?, pulse? }`.
 - **Steps.** Mirror the design system exactly; the only consumer of raw CSS variables. Add
   `unknown` (slate, dashed border) so a missing measurement is never coloured like a healthy one.
+- **The tokens mirror the guide; the bands do not.** `statusToken` decides what `crit` *looks like*.
+  What *counts* as crit is a limit from `GET /api/alert-limits/<service>`, resolved through the
+  `useLimits` hook — never a number passed by a page. The guide's example figures (CO₂ 1 200 ppm,
+  75 °C, SOC 15 %) disagree with every one of the service limits and are illustrations of the colour
+  rule, not the rule (`16` §4.6). A caller may pass a `status`; it may not pass a threshold.
+- **Names.** The guide spells the alarm LED `.led-alert`; `index.css` spells it `.led-alarm`. Keep
+  both until the alias period in `16` §4.1.3 ends, then keep only the guide's.
 - **Acceptance.** A grep for `--ok|--warn|--crit` in page files returns only `statusToken` usage.
 
 #### 4.2.2 Readout
@@ -133,6 +141,9 @@ cause select, note/resolution (3–500 chars). `commands.tsx`: `useCommand()` po
 - **Responsibility.** SOC, coverage, reservoir level.
 - **Contract.** `<SegmentedGauge value min max bands={[{to, token, label}]} label unit />`.
 - **Steps.** 20 segments; bands evaluated in order. Below the lowest band, pulse at 1.2 s.
+- **Bands come from limits, not from the guide.** The design system's SOC bands (50 / 25 / 15) leave
+  15–25 % undefined and contradict `battery.warn_pct`; build the gauge so the caller supplies the
+  breaks, and let `42` §4.1 supply `battery.warn_pct` and `reserve_pct`.
 - **Acceptance.** SOC 12 % pulses crit and shows the band label "below reserve".
 
 ### 4.3 Scan imaging subsystem

@@ -12,7 +12,7 @@ researcher works"* — the 100 % band of the Control criterion for every service
 commands"*. Also Data 100 % (a preset is how a researcher asks a repeatable question) and UI/UX
 100 % (*"design shows clear decisions about the researcher's tasks"*).
 
-**Depends on.** `06` (guards, batch), `13` (store), `14` (controls).
+**Depends on.** `06` (guards, batch), `13` (store), `14` (controls), `16` (appearance).
 
 ---
 
@@ -145,6 +145,11 @@ For RTA scan chains and OPG posture changes at a time the service cannot express
 - **Steps.** The dialog states the command, the entity, the current value, the new value, the
   predicted immediate effect (from the guard's model, e.g. "44 dishes leave the scan"), and the
   researcher code. Confirm is a two-step press-and-hold for `stow_dish` and `stop_generator`.
+- **Appearance.** The design system has exactly one modal idiom — the Researcher Action Modal of
+  its §6 — and a second, differently-shaped dialog for commands would double the vocabulary an
+  operator has to learn at 3 a.m. Reuse that component (`16` §4.4.2): same size, same field order,
+  same "the API's rejection reason, verbatim" footer. A confirmation is a cheap way to be forgiven a
+  mistake; it is not a different kind of conversation.
 - **Acceptance.** No dangerous control can be fired with a single click, and the confirmation
   text names the actual effect.
 
