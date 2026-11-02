@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Activity, Droplets, HeartPulse, Leaf, Lock, Thermometer, Wind, Users } from 'lucide-react';
 import { LineChart, MicroMeter } from '../components/charts';
 import { CommandFeedback, CommandLog, useCommand } from '../components/commands';
+import { DerivedDatum, useMeasures } from '../components/derived';
 import { Button, Datum, Field, Panel, PanelHead, Pill, SectionLabel, Select, TextInput } from '../components/ui';
 import { clockTime, kelvinToC, num, pct, toNumber } from '../lib/format';
 import { useLive, useResearcher, useSeries } from '../lib/hooks';
@@ -49,6 +50,7 @@ const ROOMS: RoomBox[] = [
 export function MhePage() {
   useLive();
   const service = live.services.get('mhe');
+  const measures = useMeasures('mhe');
   const [selected, setSelected] = useState<string | null>(null);
 
   if (!service?.topology) {
@@ -96,6 +98,12 @@ export function MhePage() {
       </div>
 
       <div className="flex min-h-0 flex-col gap-2 xl:overflow-y-auto scroll-thin">
+        <Panel>
+          <PanelHead title="Derived" hint="occupancy, stress, air" icon={<Activity size={13} />} />
+          <DerivedDatum measure={measures.get('mhe.headcount')} label="headcount" />
+          <DerivedDatum measure={measures.get('mhe.stress_index')} label="stress index" />
+          <DerivedDatum measure={measures.get('mhe.co2_mean')} label="mean co2" />
+        </Panel>
         <HabitatControls room={selected} />
         <Panel>
           <PanelHead title="Command log" hint="last 8" />

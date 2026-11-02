@@ -278,3 +278,30 @@ export interface FramesFrame {
   t: number;
   frames: PlatformEvent[];
 }
+
+/** Verdicts are the server's, not the panel's: one measure, one judgement. */
+export type MeasureVerdict = 'ok' | 'warn' | 'crit' | 'unknown';
+
+export interface DerivedMeasure {
+  key: string;
+  label: string;
+  question: string;
+  unit: string | null;
+  value: number | null;
+  verdict: MeasureVerdict;
+  /** The samples the value came from, so a reader can check the arithmetic. */
+  inputs: Record<string, number | string | null>;
+  reason?: string;
+}
+
+export interface DerivedReport {
+  service: string;
+  /** Newest simulator timestamp among the inputs; null when nothing has been stored. */
+  ts: number | null;
+  measures: DerivedMeasure[];
+}
+
+export interface DerivedResponse {
+  at: number | null;
+  services: DerivedReport[];
+}

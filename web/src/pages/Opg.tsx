@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BatteryCharging, Fuel, Gauge, Power, Sun, Zap } from 'lucide-react';
 import { LineChart } from '../components/charts';
 import { CommandFeedback, CommandLog, useCommand } from '../components/commands';
+import { DerivedDatum, useMeasures } from '../components/derived';
 import { Button, Datum, Field, Panel, PanelHead, Pill, SectionLabel, Select, TextInput } from '../components/ui';
 import { clockTime, num, pct, signed, toNumber as number, watts } from '../lib/format';
 import { useLive, useResearcher, useSeries } from '../lib/hooks';
@@ -22,6 +23,7 @@ import { live } from '../lib/live';
 export function OpgPage() {
   useLive();
   const service = live.services.get('opg');
+  const measures = useMeasures('opg');
 
   if (!service?.topology) {
     return (
@@ -110,6 +112,11 @@ export function OpgPage() {
             <Datum label="temperature" value={`${num(battery.battery_temperature_k, 1)} K`} />
             <Datum label="reserve setpoint" value={pct(live.state('opg', 'batteries', 'reserve_pct'))} />
             <Datum label="solar array" value={live.state('opg', 'solar', 'enabled') === false ? 'disabled' : 'enabled'} />
+          </div>
+          <div className="mt-1 border-t border-base-700 pt-1">
+            <DerivedDatum measure={measures.get('opg.autonomy')} label="autonomy to reserve" />
+            <DerivedDatum measure={measures.get('opg.net_margin')} label="net margin" />
+            <DerivedDatum measure={measures.get('opg.renewable_share')} label="solar share" />
           </div>
         </Panel>
         <Panel>

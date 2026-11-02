@@ -66,6 +66,43 @@ export function countStates(store: Store, service: string): number {
   return row.n;
 }
 
+export interface LatestSample {
+  entity: string;
+  stream: string;
+  ts: number;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Newest sample per entity across `streams`.
+ *
+ * Derived measures ask what the service is doing *now*, so they must not fold a dish that went
+ * silent ten minutes ago into today's average. When an entity publishes on several of the
+ * streams, the newest row wins.
+ */
+export function latestTelemetry(
+  store: Store,
+  service: string,
+  streams: string[],
+): LatestSample[] {
+  if (streams.length === 0) return [];
+  const inList = streams.map(() => '?').join(',');
+  const rows = store.db
+    .prepare(
+      `SELECT t.entity, t.stream, t.ts, t.data
+         FROM telemetry t
+         JOIN (SELECT entity, MAX(id) AS id FROM telemetry
+                WHERE service = ? AND stream IN (${inList}) GROUP BY entity) m ON m.id = t.id`,
+    )
+    .all(service, ...streams) as Array<{ entity: string; stream: string; ts: number; data: string }>;
+  return rows.map((r) => ({
+    entity: r.entity,
+    stream: r.stream,
+    ts: r.ts,
+    data: safeJson(r.data, {}),
+  }));
+}
+
 /**
  * Telemetry for a chart.
  *

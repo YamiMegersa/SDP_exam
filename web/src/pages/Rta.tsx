@@ -15,6 +15,7 @@ import {
 import { ScanCanvas } from '../components/ScanCanvas';
 import { LineChart } from '../components/charts';
 import { CommandFeedback, CommandLog, useCommand } from '../components/commands';
+import { measureText, useMeasures, verdictTone } from '../components/derived';
 import { Button, Datum, Field, Panel, PanelHead, Pill, Readout, SectionLabel, Select, TextInput } from '../components/ui';
 import { clockTime, hz, kelvinToC, num, pct, radiansToDeg, since, toNumber } from '../lib/format';
 import { targetLabel } from '../lib/catalogue';
@@ -49,6 +50,7 @@ export function RtaPage() {
   const [selected, setSelected] = useState<string | null>(null);
   // Subscribes to the catalogue so the pointing is re-labelled once it arrives.
   useTargets();
+  const measures = useMeasures('rta');
 
   if (!service?.topology) {
     return (
@@ -89,6 +91,12 @@ export function RtaPage() {
             />
             <div className="grid grid-cols-2 gap-x-3 gap-y-2 lg:grid-cols-1">
               <Readout label="active dishes" value={`${active}/${dishes.length}`} tone="rta" />
+              <Readout
+                label="pointing error"
+                value={measureText(measures.get('rta.pointing_error'))}
+                size="sm"
+                tone={verdictTone(measures.get('rta.pointing_error'))}
+              />
               <Readout
                 label="scan id"
                 value={service.scan.scanId ?? '\u2014'}

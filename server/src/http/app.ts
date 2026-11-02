@@ -7,6 +7,7 @@ import type { CommandService } from '../commands/service';
 import type { Config } from '../config';
 import type { Store } from '../db/store';
 import { latestStates, series, serviceCounts, timeRange } from '../db/queries';
+import { deriveAll } from '../derived/measures';
 import type { Ingest } from '../mqtt/ingest';
 import type { ReplayService } from '../replay/session';
 import type { TopologyRegistry } from '../topology/registry';
@@ -152,6 +153,29 @@ export function createApp(deps: AppDeps): express.Express {
 
   api.get('/targets', async (_req, res) => {
     res.json(await deps.api.targets());
+  });
+
+  /**
+   * The questions the raw streams cannot answer on their own. Limits come from the ARL API and are
+   * cached there, so a directory outage degrades the verdicts to `unknown` but never the values.
+   */
+  api.get('/derived', async (req, res) => {
+    const requested =
+      typeof req.query.service === 'string' && req.query.service.length > 0
+        ? [req.query.service]
+        : deps.registry.services;
+    const unknown = requested.filter((code) => !deps.registry.get(code));
+    if (unknown.length > 0) return res.status(404).json({ error: 'unknown_service', detail: unknown });
+
+    const limits = new Map(
+      await Promise.all(
+        requested.map(async (code) => [code, await deps.api.alertLimits(code)] as const),
+      ),
+    );
+    res.json({
+      at: deps.clock.known() ? deps.clock.now() : null,
+      services: deriveAll(deps.store, deps.registry, deps.cfg, limits),
+    });
   });
 
   api.get('/alert-limits/:service', async (req, res) => {

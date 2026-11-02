@@ -4,6 +4,7 @@ import type {
   AlertTransition,
   CommandAckRow,
   CommandRow,
+  DerivedResponse,
   ReplaySnapshot,
   Researcher,
   StateRow,
@@ -137,6 +138,7 @@ export const api = {
     return request<SeriesResponse>(`/series?${query.toString()}`);
   },
   targets: () => request<Target[]>('/targets'),
+  derived: () => request<DerivedResponse>('/derived'),
   alertLimits: (service: string) =>
     request<Record<string, { type: string; severity: string; warn: number | null; crit: number | null }>>(
       `/alert-limits/${service}`,

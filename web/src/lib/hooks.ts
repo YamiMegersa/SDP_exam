@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from './api';
 import { cachedTargets, loadTargets } from './catalogue';
 import { live, type Ring } from './live';
-import type { Sample, Target } from './types';
+import type { DerivedReport, Sample, Target } from './types';
 
 /** Re-renders at 10 Hz (the client's own notify rate) whenever live data changes. */
 export function useLive(): number {
@@ -111,6 +111,41 @@ export function useTargets(): { targets: Target[]; error: string | null } {
   }, []);
 
   return { targets, error };
+}
+
+/**
+ * Derived indicators, polled rather than pushed.
+ *
+ * They are computed from stored telemetry on the server (`GET /api/derived`), so the console reads
+ * one definition instead of re-deriving the arithmetic in each panel. A failure keeps the previous
+ * answer on screen: the live feed is unaffected, and a stale number beats a blank one.
+ */
+export function useDerived(intervalMs = 5_000): Map<string, DerivedReport> {
+  const [reports, setReports] = useState<Map<string, DerivedReport>>(() => new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
+    const load = () => {
+      api
+        .derived()
+        .then((response) => {
+          if (cancelled) return;
+          setReports(new Map(response.services.map((report) => [report.service, report])));
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) timer = window.setTimeout(load, intervalMs);
+        });
+    };
+    load();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [intervalMs]);
+
+  return reports;
 }
 
 /** Persisted operator identity: the console should not re-ask on every command. */

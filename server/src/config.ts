@@ -31,6 +31,18 @@ export interface Config {
   serviceSilenceMs: number;
   /** Retain raw telemetry for this many hours before compaction (0 keeps everything). */
   telemetryRetentionHours: number;
+  /**
+   * Plant and crew constants the derived measures need and the services do not publish.
+   * They are configuration, not credentials, but still env-overridable so a differently sized
+   * plant can be read from the same code.
+   */
+  derived: {
+    batteryKwh: number;
+    /** Rated crew; 0 counts the topology's `crew` entities instead. */
+    crewExpected: number;
+    stressRestBpm: number;
+    stressMaxBpm: number;
+  };
 }
 
 /** Minimal .env loader so the platform runs without extra tooling. */
@@ -115,5 +127,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     },
     serviceSilenceMs: num(env, 'SERVICE_SILENCE_S', 180) * 1_000,
     telemetryRetentionHours: num(env, 'TELEMETRY_RETENTION_H', 0),
+    derived: {
+      batteryKwh: num(env, 'OPG_BATTERY_KWH', 4_000),
+      crewExpected: num(env, 'MHE_CREW_EXPECTED', 0),
+      stressRestBpm: num(env, 'STRESS_REST_BPM', 60),
+      stressMaxBpm: num(env, 'STRESS_MAX_BPM', 110),
+    },
   };
 }
