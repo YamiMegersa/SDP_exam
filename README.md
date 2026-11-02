@@ -273,6 +273,60 @@ ARL_SPEEDUP=10 ARL_SEED=7 ARL_SCENARIO=/scenarios/example.toml \
 `ARL_SPEEDUP` caps: RTA 50, MHE 2000, LWM/OPG/OWT 500. Scenario faults are the way to exercise every
 alert rule.
 
+#### Without a container runtime
+
+The bundle also ships native Linux x86_64 binaries (`arl-sim/bin/arl-{api,rta,mhe,opg,lwm,owt}`) and
+documents them in its own `README.md` under `## Binary`. They need what compose would otherwise
+provide:
+
+| Provisioned by compose | Without containers |
+| --- | --- |
+| `eclipse-mosquitto` on 1883 | a normal Mosquitto install, using `arl-sim/mosquitto/mosquitto.conf` |
+| `postgres:16` for the API | a local PostgreSQL 16 — `config/api.toml` carries `database_url = "postgres://arl:arl@postgres/arl"`, and the API has no embedded store |
+| `/seed` (researchers, targets) | copied out of `images/arl-api.tar`; `ARL_SEED_DIR` points the API at it |
+| `/assets` for RTA and LWM | copied out of `images/arl-rta.tar`; `config/rta.toml` names `geojson = "/assets/arl.geojson"` and `assets_dir = "/assets/rta"` |
+
+```bash
+# once: take the files out of the images (podman shown; the by-hand tar route is below)
+podman create --name arl-files arl/rta:0.1.0 && podman cp arl-files:/assets ./assets
+podman create --name arl-api-files arl/api:0.1.0 && podman cp arl-api-files:/seed ./seed
+sed 's#"/assets#"assets#' config/rta.toml > rta.local.toml
+
+# the API, then one service
+DATABASE_URL=postgres://arl:arl@localhost/arl ARL_SEED_DIR=$PWD/seed \
+  ARL_SERVICE_TOKEN=test-service-token MQTT_BROKER_ADDRESS=localhost \
+  ./bin/arl-api --config config/api.toml
+
+MQTT_BROKER_ADDRESS=localhost ARL_API_ADDRESS=localhost \
+  ARL_SERVICE_TOKEN=test-service-token HEALTH_PORT=9101 \
+  ./bin/arl-rta --config rta.local.toml
+```
+
+`ARL_SERVICE_TOKEN=test-service-token` is worth copying verbatim: the compose file gives it to the API
+and to the RTA, and nothing outside those two files documents it. Compose also injects `ARL_SEED`,
+`ARL_SPEEDUP` and `ARL_START_TIME` into every service; without them the config's own defaults apply.
+Give each binary its own `HEALTH_PORT` — every shipped config sets 9100, so two binaries started as-is
+collide. With neither Docker nor Podman on the machine the files still come out by hand: the tarball is
+an OCI archive (`index.json`, `oci-layout`, gzipped layers under `blobs/sha256/`), so `tar -xf` the
+archive once and `tar -tzf` the blobs until `assets/arl.geojson` appears.
+
+The platform stays outside all of this. It is not in the compose file, it only needs the two addresses,
+and that is why the same build runs against containers, against binaries, or against the examiner's own
+lab.
+
+There is also an offline path that needs neither broker nor containers, useful for fixtures rather than
+for driving the UI. `run --ndjson <file>` writes every message the service would have published instead
+of publishing it, and `preroll --from … --to … --out …` does the same over a time range with no pacing
+at all. Both are byte-identical for a fixed seed and start time, which is what makes them fixtures.
+
+```bash
+./bin/arl-rta --config config/rta.toml --seed 1 --start-time 2027-03-02T00:00:00Z \
+  --scenario scenarios/example.toml run --ndjson /tmp/rta.ndjson
+
+./bin/arl-rta preroll --config config/rta.toml --seed 1 \
+  --from 2027-03-02T00:00:00Z --to 2027-03-02T06:00:00Z --out /tmp/rta-6h.ndjson
+```
+
 ### 2. The platform
 
 ```bash
@@ -473,6 +527,12 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 
 Newest first. Each entry: what changed, and why if non-obvious.
 
+- **2026-11-02 — Documented the container-free path to the simulator.** The bundle ships native binaries
+  as well as images, and its `README.md` says so under `## Binary`, but the two paths that are easy to
+  get wrong were only in the planning set: the API still wants Postgres 16 (no embedded store), and RTA
+  reads `/assets` from inside the image. Both are now in [Running Locally](#running-locally), together
+  with the `HEALTH_PORT` collision and the `run --ndjson` offline mode — so a marker with neither Docker
+  nor Podman can still reproduce the lab.
 - **2026-11-02 — Submitted.** The graded repository `2800269-sdp-exam-2026` was created private on
   `sdp.ms.wits.ac.za` and `main` was pushed to it (`origin` now points there, not at `SDP_Exam`). Nothing
   about the code changed: this is the point where the examiner's scan starts seeing the work.
