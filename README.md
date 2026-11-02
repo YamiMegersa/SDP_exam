@@ -581,10 +581,13 @@ Newest first. Each entry: what changed, and why if non-obvious.
       git push -u origin main
       ```
 
-      The development sandbox answers `502` to every request to that host, so creating the repository,
-      renaming the remote and pushing all have to happen outside it.
-- [ ] **Uncommitted work.** The 97-test suite, the service-plugin refactor, `docs/` (planning set and
-      screenshots) and the fixes from the screenshot review are still uncommitted in this working tree.
+      This environment reaches the host but holds no repository credentials (both repositories answer
+      `401`), so creating the graded repository, renaming the remote and pushing have to happen where the
+      student's credentials live. Until then the five commits above stay local.
+- [ ] **Uncommitted work.** None: the work sits on `main` in five logical commits — the alert
+      reconciliation fix, the test suite, the plugin refactor, the web fixes and this README with its
+      screenshots. Nothing is pushed: the host answers `401` to this environment, which holds no
+      repository credentials.
 - [ ] Brief §3.1 planning answers still to be written up in their own words: "What is MQTT / how does it
       work", "initial architecture", "why a bespoke solution over off-the-shelf", "what should the
       application look like". (The stack/service/order/storage answers are captured in D1–D5 above.)
