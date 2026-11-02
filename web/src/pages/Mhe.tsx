@@ -67,7 +67,9 @@ export function MhePage() {
   return (
     <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto p-2 xl:grid-cols-[minmax(0,1fr)_350px] xl:overflow-hidden">
       <div className="flex min-h-0 flex-col gap-2 xl:overflow-y-auto scroll-thin">
-        <Panel>
+        {/* shrink-0: a fixed-aspect drawing cannot be squeezed, so the column
+            scrolls instead of letting the plan spill over its neighbours. */}
+        <Panel className="shrink-0">
           <PanelHead
             title="Habitat plan"
             hint="9 compartments · live hazard colouring"
@@ -128,7 +130,15 @@ function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect
 
   return (
     <div className="rounded border border-base-700 bg-base-950/60 p-1">
-      <svg viewBox="0 0 720 560" className="h-auto w-full" role="img" aria-label="Habitat floor plan">
+      {/* The plan is a fixed aspect drawing: without the cap it grows to the full
+          column width and overflows the panel it sits in, painting over the
+          compartment detail and crew strip below. */}
+      <svg
+        viewBox="0 0 720 560"
+        className="mx-auto h-auto max-h-[44vh] w-full max-w-[620px]"
+        role="img"
+        aria-label="Habitat floor plan"
+      >
         <rect x="30" y="30" width="660" height="500" rx="12" fill="none" stroke="#283548" strokeWidth="4" />
         {ROOMS.map((room) => {
           const env = live.sample('mhe', 'environment', room.id)?.data;

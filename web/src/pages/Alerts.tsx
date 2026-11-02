@@ -207,7 +207,7 @@ export function AlertsPage() {
                 </div>
                 <p className="text-xs text-ink-100">{selected.message ?? selected.type}</p>
                 <p className="telemetry-readout mt-1 text-2xs text-ink-500">
-                  {selected.service}/{selected.entity ?? 'service'} \u00b7 type {selected.type}
+                  {selected.service}/{selected.entity ?? 'service'}{' \u00b7 '}type {selected.type}
                   {selected.value !== null ? ` \u00b7 value ${selected.value}${selected.unit ?? ''}` : ''}
                   {selected.limit_value !== null ? ` \u00b7 limit ${selected.limit_value}` : ''}
                 </p>

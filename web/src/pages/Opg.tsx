@@ -48,7 +48,9 @@ export function OpgPage() {
         <Panel>
           <PanelHead
             title="Energy flow"
-            hint="solar \u2192 bus \u2190 diesel, bus \u2194 battery, bus \u2192 base load"
+            // An expression, not a plain attribute: JSX attribute literals keep the backslash,
+            // so "\u2192" would render as text instead of an arrow.
+            hint={'solar \u2192 bus \u2190 diesel, bus \u2194 battery, bus \u2192 base load'}
             icon={<Zap size={13} />}
             right={
               <>
