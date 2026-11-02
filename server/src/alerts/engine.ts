@@ -32,7 +32,10 @@ export class AlertEngine {
   private readonly startedAt = Date.now();
   private readonly lastGap = new Map<string, number>();
   private readonly gapTotals = new Map<string, number>();
-  private brokerConnected = true;
+  // Starts false on purpose: this process has no broker connection until the
+  // first `connect` arrives, and that transition is also what closes a broker
+  // alert a previous process left open. Starting at true would swallow it.
+  private brokerConnected = false;
 
   constructor(
     private readonly store: Store,
@@ -46,6 +49,9 @@ export class AlertEngine {
     const every = this.opts.sweepMs ?? 10_000;
     this.timer = setInterval(() => this.sweep(), every);
     this.timer.unref?.();
+    // Reconcile against the stored state straight away, so platform alerts from
+    // a previous run are not red for a full sweep interval after a restart.
+    this.sweep();
   }
 
   stop(): void {
