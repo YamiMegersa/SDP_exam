@@ -5,7 +5,7 @@ import { CommandStatePill } from '../components/commands';
 import { Button, Datum, Empty, Panel, PanelHead, Pill, Readout } from '../components/ui';
 import { clockTime, kelvinToC, num, pct, since, watts } from '../lib/format';
 import { targetLabel } from '../lib/catalogue';
-import { useLive, useSeries, useTick } from '../lib/hooks';
+import { useLimits, useLive, useSeries, useTick } from '../lib/hooks';
 import { live } from '../lib/live';
 import type { Route } from '../components/Shell';
 
@@ -115,7 +115,7 @@ function ServiceCard({
 }) {
   const service = live.services.get(code);
   const online = service?.online ?? null;
-  const accent = code === 'rta' ? '#38bdf8' : code === 'mhe' ? '#fb923c' : '#facc15';
+  const accent = `var(--${code})`;
   const openAlerts = live.activeAlerts().filter((alert) => alert.service === code).length;
 
   return (
@@ -178,10 +178,13 @@ function MheMetrics() {
   useLive();
   const service = live.services.get('mhe');
   const co2 = service ? live.aggregate(service, 'environment', 'co2_ppm') : null;
+  // Banded against the ARL's own limit; unbanded (inert) when it cannot be read.
+  const co2Warn = useLimits('mhe').value('air.co2_warn_ppm');
+  const co2Tone = !co2 || co2Warn === null ? 'inert' : co2.value >= co2Warn ? 'warn' : 'neutral';
   return (
     <>
       <Readout label="mission state" value={String(live.state('mhe', 'global', 'mission_state') ?? '\u2014')} tone="mhe" />
-      <Readout label="mean co2" value={num(co2?.value, 0)} unit="ppm" size="sm" tone={co2 && co2.value > 1000 ? 'warn' : 'neutral'} />
+      <Readout label="mean co2" value={num(co2?.value, 0)} unit="ppm" size="sm" tone={co2Tone} />
       <Readout label="mean temp" value={kelvinToC(service ? live.aggregate(service, 'environment', 'temperature_k')?.value : null)} size="sm" />
       <Readout label="max co2" value={num(co2?.max, 0)} unit="ppm" size="sm" />
     </>
@@ -197,7 +200,7 @@ function OpgMetrics() {
   return (
     <>
       <Readout label="generation" value={watts(generation)} tone="opg" />
-      <Readout label="margin" value={watts(margin)} size="sm" tone={margin < 0 ? 'warn' : 'ok'} />
+      <Readout label="margin" value={watts(margin)} size="sm" tone={margin < 0 ? 'crit' : 'ok'} />
       <Readout label="soc" value={pct(live.sample('opg', 'power', 'batteries')?.data.state_of_charge_pct)} size="sm" />
       <Readout label="supply mode" value={String(total.supply_mode ?? '\u2014')} size="sm" />
     </>

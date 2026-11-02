@@ -5,7 +5,7 @@ import { CommandFeedback, CommandLog, useCommand } from '../components/commands'
 import { DerivedDatum, useMeasures } from '../components/derived';
 import { Button, Datum, Field, Panel, PanelHead, Pill, SectionLabel, Select, TextInput } from '../components/ui';
 import { clockTime, kelvinToC, num, pct, toNumber } from '../lib/format';
-import { useLive, useResearcher, useSeries } from '../lib/hooks';
+import { useLimits, useLive, useResearcher, useSeries } from '../lib/hooks';
 import { live } from '../lib/live';
 
 /**
@@ -16,10 +16,34 @@ import { live } from '../lib/live';
  * same CO2 with the scrubbers running. The plan view therefore colours by hazard
  * and the detail panel always shows the setpoint that the room is being held
  * against, so "is this bad?" is answerable without a second screen.
+ *
+ * Every hazard band is read from `GET /api/alert-limits/mhe`; the design system's CO2 figure is an
+ * illustration, not a threshold. With the limits unreadable the values are drawn `inert`, unbanded.
  */
 
-const CO2_WARN = 1000;
-const CO2_CRIT = 1200;
+interface AirLimits {
+  co2Warn: number | null;
+  co2Crit: number | null;
+  o2Min: number | null;
+}
+
+interface CrewLimits {
+  hrMax: number | null;
+  tempMaxK: number | null;
+  spo2Min: number | null;
+}
+
+type Band = 'ok' | 'warn' | 'crit';
+
+/** A room's air band: CO2 against its warn/crit limits, and O2 below its minimum is critical. */
+function airBand(co2: number | null, o2: number | null, limits: AirLimits): Band | null {
+  if (co2 === null || limits.co2Warn === null || limits.co2Crit === null) return null;
+  if (co2 >= limits.co2Crit || (o2 !== null && limits.o2Min !== null && o2 < limits.o2Min)) return 'crit';
+  return co2 >= limits.co2Warn ? 'warn' : 'ok';
+}
+
+const BAND_VAR: Record<Band, string> = { ok: 'var(--nominal)', warn: 'var(--caution)', crit: 'var(--alarm)' };
+const BAND_FILL_OPACITY: Record<Band, number> = { ok: 0.16, warn: 0.28, crit: 0.34 };
 
 interface RoomBox {
   id: string;
@@ -52,6 +76,17 @@ export function MhePage() {
   const service = live.services.get('mhe');
   const measures = useMeasures('mhe');
   const [selected, setSelected] = useState<string | null>(null);
+  const limits = useLimits('mhe');
+  const air: AirLimits = {
+    co2Warn: limits.value('air.co2_warn_ppm'),
+    co2Crit: limits.value('air.co2_crit_ppm'),
+    o2Min: limits.value('air.o2_min_ppm'),
+  };
+  const crewLimits: CrewLimits = {
+    hrMax: limits.value('crew.hr_max'),
+    tempMaxK: limits.value('crew.temp_max_k'),
+    spo2Min: limits.value('crew.spo2_min'),
+  };
 
   if (!service?.topology) {
     return (
@@ -81,21 +116,30 @@ export function MhePage() {
               </>
             }
           />
-          <HabitatPlan selected={selected} onSelect={setSelected} />
+          <HabitatPlan selected={selected} onSelect={setSelected} air={air} />
           <div className="mt-2 flex flex-wrap items-center gap-3 text-2xs text-ink-500">
-            <LegendSwatch className="bg-ok/50" label="nominal" />
-            <LegendSwatch className="bg-warn/50" label={`CO2 > ${CO2_WARN} ppm`} />
-            <LegendSwatch className="bg-crit/60" label={`CO2 > ${CO2_CRIT} ppm`} />
+            {air.co2Warn !== null && air.co2Crit !== null ? (
+              <>
+                <LegendSwatch className="bg-ok/50" label="nominal" />
+                <LegendSwatch className="bg-warn/50" label={`CO\u2082 \u2265 ${air.co2Warn} ppm`} />
+                <LegendSwatch
+                  className="bg-crit/60"
+                  label={`CO\u2082 \u2265 ${air.co2Crit} ppm${air.o2Min !== null ? ` or O\u2082 < ${air.o2Min} ppm` : ''}`}
+                />
+              </>
+            ) : (
+              <LegendSwatch className="bg-inert/50" label="ARL limits unavailable \u2014 hazard bands suppressed" />
+            )}
             <LegendSwatch className="bg-inhand/40" label="sealed / depressurised" />
             <span className="ml-auto flex items-center gap-1">
-              <Lock size={11} /> airlock state drives the sealed overlay
+              <Users size={11} /> badge = crew in the room
             </span>
           </div>
         </Panel>
 
         <div className="grid gap-2 lg:grid-cols-2">
-          <RoomDetail room={selected} />
-          <CrewStrip crew={crew.map((entity) => entity.id)} />
+          <RoomDetail room={selected} air={air} />
+          <CrewStrip crew={crew.map((entity) => entity.id)} limits={crewLimits} />
         </div>
       </div>
 
@@ -125,7 +169,17 @@ function LegendSwatch({ className, label }: { className: string; label: string }
   );
 }
 
-function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect: (id: string) => void }) {
+const MONO = 'JetBrains Mono, monospace';
+
+function HabitatPlan({
+  selected,
+  onSelect,
+  air,
+}: {
+  selected: string | null;
+  onSelect: (id: string) => void;
+  air: AirLimits;
+}) {
   useLive();
 
   return (
@@ -139,33 +193,25 @@ function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect
         role="img"
         aria-label="Habitat floor plan"
       >
-        <rect x="30" y="30" width="660" height="500" rx="12" fill="none" stroke="#283548" strokeWidth="4" />
+        <rect x="30" y="30" width="660" height="500" rx="12" fill="none" style={{ stroke: 'var(--panel-edge)' }} strokeWidth="4" />
         {ROOMS.map((room) => {
           const env = live.sample('mhe', 'environment', room.id)?.data;
           const airlock = live.sample('mhe', 'airlock', room.id)?.data;
           const sealed = live.state('mhe', room.id, 'sealed') === true;
           const co2 = toNumber(env?.co2_ppm);
-          const depressurised = room.id === 'airlock' && airlock?.airlock_state === 'depressurized';
+          const o2 = toNumber(env?.oxygen_ppm);
+          const band = airBand(co2, o2, air);
+          const airlockState = airlock ? String(airlock.airlock_state ?? '') : null;
+          const depressurised = room.id === 'airlock' && airlockState === 'depressurized';
 
-          const fill =
-            co2 === null
-              ? '#151d2b'
-              : co2 >= CO2_CRIT
-                ? 'rgba(239,68,68,0.34)'
-                : co2 >= CO2_WARN
-                  ? 'rgba(245,158,11,0.28)'
-                  : 'rgba(16,185,129,0.16)';
-          const stroke =
-            co2 === null
-              ? '#1f293d'
-              : co2 >= CO2_CRIT
-                ? '#ef4444'
-                : co2 >= CO2_WARN
-                  ? '#f59e0b'
-                  : '#10b981';
+          const fill = band ? BAND_VAR[band] : 'var(--panel-deep)';
+          const fillOpacity = band ? BAND_FILL_OPACITY[band] : 1;
+          const stroke = band ? BAND_VAR[band] : 'var(--panel-edge)';
           const isSelected = selected === room.id;
           const temp = toNumber(env?.temperature_k);
-          const occupancy = toNumber(env?.crew_count) ?? 0;
+          const occupancy = toNumber(env?.crew_count);
+          const wide = room.width > 140;
+          const readingInk = band === 'warn' || band === 'crit' ? BAND_VAR[band] : band ? 'var(--ink-300)' : 'var(--inert)';
 
           return (
             <g
@@ -175,14 +221,16 @@ function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect
               role="button"
               aria-label={room.id}
             >
+              <title>
+                {band ? `${room.id}: ${band}` : `${room.id}: ARL alert limits unavailable, hazard band suppressed`}
+              </title>
               <rect
                 x={room.x}
                 y={room.y}
                 width={room.width}
                 height={room.height}
                 rx="3"
-                fill={fill}
-                stroke={isSelected ? '#38bdf8' : stroke}
+                style={{ fill, fillOpacity, stroke: isSelected ? 'var(--mhe)' : stroke }}
                 strokeWidth={isSelected ? 4 : 2}
               />
               {sealed || depressurised ? (
@@ -192,7 +240,7 @@ function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect
                   width={room.width - 12}
                   height={room.height - 12}
                   fill="none"
-                  stroke="#6366f1"
+                  style={{ stroke: 'var(--in-hand)' }}
                   strokeWidth="1.5"
                   strokeDasharray="6 4"
                 />
@@ -201,7 +249,7 @@ function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect
               <text
                 x={room.x + 10}
                 y={room.y + 26}
-                fill="#f1f5f9"
+                style={{ fill: 'var(--ink-100)' }}
                 fontSize="19"
                 fontWeight="600"
                 fontFamily="Inter, system-ui, sans-serif"
@@ -209,64 +257,57 @@ function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect
                 {room.label}
               </text>
 
-              {room.width > 140 ? (
-                <>
-                  <text
-                    x={room.x + 10}
-                    y={room.y + 52}
-                    fill="#cbd5e1"
-                    fontSize="17"
-                    fontFamily="JetBrains Mono, monospace"
-                  >
-                    {kelvinToC(temp, 0)}
-                  </text>
-                  <text
-                    x={room.x + 10}
-                    y={room.y + 76}
-                    fill={co2 !== null && co2 >= CO2_WARN ? '#fbbf24' : '#94a3b8'}
-                    fontSize="17"
-                    fontFamily="JetBrains Mono, monospace"
-                  >
-                    {num(co2, 0)} ppm
-                  </text>
-                  <text
-                    x={room.x + 10}
-                    y={room.y + 100}
-                    fill="#64748b"
-                    fontSize="16"
-                    fontFamily="JetBrains Mono, monospace"
-                  >
-                    {num(env?.humidity_pct, 0)}% rh &middot; {num(env?.pressure_kpa, 1)} kPa
-                  </text>
-                  {occupancy > 0 ? (
-                    <g>
-                      <circle cx={room.x + room.width - 26} cy={room.y + 24} r="14" fill="#1f293d" stroke="#38bdf8" />
-                      <text
-                        x={room.x + room.width - 26}
-                        y={room.y + 30}
-                        fill="#e2e8f0"
-                        fontSize="16"
-                        textAnchor="middle"
-                        fontFamily="JetBrains Mono, monospace"
-                      >
-                        {occupancy}
-                      </text>
-                    </g>
-                  ) : null}
-                </>
+              {/* Occupancy badge on every compartment, not only the wide ones. */}
+              <g opacity={occupancy && occupancy > 0 ? 1 : 0.45}>
+                <circle
+                  cx={room.x + room.width - 22}
+                  cy={room.y + 20}
+                  r="13"
+                  style={{ fill: 'var(--elev)', stroke: occupancy && occupancy > 0 ? 'var(--mhe)' : 'var(--panel-edge)' }}
+                />
+                <text
+                  x={room.x + room.width - 22}
+                  y={room.y + 26}
+                  style={{ fill: 'var(--ink-100)' }}
+                  fontSize="15"
+                  fontWeight="700"
+                  textAnchor="middle"
+                  fontFamily={MONO}
+                >
+                  {occupancy === null ? '\u2014' : occupancy}
+                </text>
+              </g>
+
+              <text x={room.x + 10} y={room.y + 50} style={{ fill: 'var(--ink-200)' }} fontSize="15" fontFamily={MONO}>
+                {kelvinToC(temp, 0)}
+              </text>
+              <text x={room.x + 10} y={room.y + 72} style={{ fill: readingInk }} fontSize="15" fontFamily={MONO}>
+                {wide ? `CO\u2082 ${num(co2, 0)} ppm` : `CO\u2082 ${num(co2, 0)}`}
+              </text>
+              <text
+                x={room.x + 10}
+                y={room.y + 94}
+                style={{
+                  fill:
+                    o2 !== null && air.o2Min !== null && o2 < air.o2Min
+                      ? 'var(--alarm)'
+                      : air.o2Min === null
+                        ? 'var(--inert)'
+                        : 'var(--ink-300)',
+                }}
+                fontSize="15"
+                fontFamily={MONO}
+              >
+                {wide ? `O\u2082 ${num(o2, 0)} ppm` : `O\u2082 ${num(o2 === null ? null : o2 / 1000, 0)}k`}
+              </text>
+              {wide ? (
+                <text x={room.x + 10} y={room.y + 116} style={{ fill: 'var(--ink-400)' }} fontSize="14" fontFamily={MONO}>
+                  {num(env?.humidity_pct, 0)}% rh &middot; {num(env?.pressure_kpa, 1)} kPa
+                </text>
               ) : null}
 
-              {room.id === 'airlock' && airlock ? (
-                <text
-                  x={room.x + room.width / 2}
-                  y={room.y + room.height - 18}
-                  fill={airlock.airlock_state === 'pressurized' ? '#10b981' : '#fbbf24'}
-                  fontSize="15"
-                  textAnchor="middle"
-                  fontFamily="JetBrains Mono, monospace"
-                >
-                  {String(airlock.airlock_state)}
-                </text>
+              {room.id === 'airlock' && airlockState ? (
+                <AirlockPill x={room.x + room.width / 2} y={room.y + room.height - 30} state={airlockState} />
               ) : null}
             </g>
           );
@@ -276,8 +317,46 @@ function HabitatPlan({ selected, onSelect }: { selected: string | null; onSelect
   );
 }
 
-function RoomDetail({ room }: { room: string | null }) {
-  useLive();
+/**
+ * The guide's airlock pill: `PRESSURIZED` on an emerald fill, `DEPRESSURIZED` in an amber outline,
+ * uppercase. A transitional state (cycling) is shown in caps on a neutral outline.
+ */
+function AirlockPill({ x, y, state }: { x: number; y: number; state: string }) {
+  const pressurised = state === 'pressurized';
+  const depressurised = state === 'depressurized';
+  const label = state.toUpperCase();
+  const width = Math.max(96, label.length * 9 + 18);
+  return (
+    <g>
+      <rect
+        x={x - width / 2}
+        y={y - 14}
+        width={width}
+        height={22}
+        rx="11"
+        strokeWidth="1.5"
+        style={{
+          fill: pressurised ? 'var(--ok)' : 'none',
+          stroke: pressurised ? 'var(--ok)' : depressurised ? 'var(--caution)' : 'var(--ink-500)',
+        }}
+      />
+      <text
+        x={x}
+        y={y + 2}
+        textAnchor="middle"
+        fontSize="13"
+        fontWeight="700"
+        letterSpacing="0.5"
+        fontFamily={MONO}
+        style={{ fill: pressurised ? 'var(--void)' : depressurised ? 'var(--caution)' : 'var(--ink-300)' }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+function RoomDetail({ room, air }: { room: string | null; air: AirLimits }) {
   if (!room) {
     return (
       <Panel>
@@ -288,13 +367,21 @@ function RoomDetail({ room }: { room: string | null }) {
       </Panel>
     );
   }
+  // Keyed so the series hooks below always run for exactly one room.
+  return <RoomDetailBody key={room} room={room} air={air} />;
+}
 
+function RoomDetailBody({ room, air }: { room: string; air: AirLimits }) {
+  useLive();
   const env = live.sample('mhe', 'environment', room)?.data ?? {};
   const hydro = live.sample('mhe', 'hydroponics', room)?.data;
   const airlock = live.sample('mhe', 'airlock', room)?.data;
   const equipment = live.sample('mhe', 'equipment', room)?.data;
   const setpoints = (live.state('mhe', room, 'setpoints') ?? {}) as Record<string, unknown>;
   const co2 = toNumber(env.co2_ppm);
+  const o2 = toNumber(env.oxygen_ppm);
+  const band = airBand(co2, o2, air);
+  const o2Low = o2 !== null && air.o2Min !== null && o2 < air.o2Min;
   const tempTrend = useSeries({ service: 'mhe', stream: 'environment', entity: room, field: 'temperature_k' });
   const co2Trend = useSeries({ service: 'mhe', stream: 'environment', entity: room, field: 'co2_ppm' });
 
@@ -305,8 +392,8 @@ function RoomDetail({ room }: { room: string | null }) {
         icon={<Thermometer size={13} />}
         right={
           <>
-            <Pill tone={co2 !== null && co2 >= CO2_CRIT ? 'crit' : co2 !== null && co2 >= CO2_WARN ? 'warn' : 'ok'}>
-              {co2 !== null && co2 >= CO2_WARN ? 'co2 high' : 'atmosphere ok'}
+            <Pill tone={band ?? 'inert'}>
+              {band === null ? 'limits unavailable' : band === 'ok' ? 'atmosphere ok' : o2Low ? 'o2 low' : 'co2 high'}
             </Pill>
             {live.state('mhe', room, 'sealed') === true ? <Pill tone="inhand">sealed</Pill> : null}
           </>
@@ -317,8 +404,16 @@ function RoomDetail({ room }: { room: string | null }) {
         <Datum label="setpoint" value={kelvinToC(setpoints.temperature_k)} />
         <Datum label="humidity" value={pct(env.humidity_pct)} />
         <Datum label="sp rh" value={pct(setpoints.humidity_pct)} />
-        <Datum label="co2" value={`${num(env.co2_ppm, 0)} ppm`} tone={co2 !== null && co2 >= CO2_WARN ? 'warn' : 'ok'} />
-        <Datum label="o2" value={`${num(env.oxygen_ppm, 0)} ppm`} />
+        <Datum
+          label={air.co2Warn === null ? 'co2' : `co2 \u00b7 warn ${air.co2Warn}`}
+          value={`${num(env.co2_ppm, 0)} ppm`}
+          tone={co2 === null || air.co2Warn === null || air.co2Crit === null ? 'inert' : co2 >= air.co2Crit ? 'crit' : co2 >= air.co2Warn ? 'warn' : 'ok'}
+        />
+        <Datum
+          label={air.o2Min === null ? 'o2' : `o2 \u00b7 min ${air.o2Min}`}
+          value={`${num(env.oxygen_ppm, 0)} ppm`}
+          tone={o2 === null || air.o2Min === null ? 'inert' : o2Low ? 'crit' : 'ok'}
+        />
         <Datum label="pressure" value={`${num(env.pressure_kpa, 1)} kPa`} />
         <Datum label="ventilation" value={`${num(env.ventilation_m3h, 0)} m3/h`} />
         <Datum label="lighting" value={`${num(env.lighting_lux, 0)} lx`} />
@@ -328,11 +423,17 @@ function RoomDetail({ room }: { room: string | null }) {
       <div className="mt-1.5 grid grid-cols-2 gap-2">
         <div>
           <div className="mb-0.5 text-2xs uppercase tracking-wider text-ink-400">co2 ppm</div>
-          <LineChart points={co2Trend.points} color="#f59e0b" height={38} threshold={{ value: CO2_WARN }} digits={0} />
+          <LineChart
+            points={co2Trend.points}
+            color="var(--caution)"
+            height={38}
+            threshold={air.co2Warn === null ? null : { value: air.co2Warn }}
+            digits={0}
+          />
         </div>
         <div>
           <div className="mb-0.5 text-2xs uppercase tracking-wider text-ink-400">temperature</div>
-          <LineChart points={tempTrend.points} color="#fb923c" height={38} digits={0} />
+          <LineChart points={tempTrend.points} color="var(--mhe)" height={38} digits={0} />
         </div>
       </div>
 
@@ -355,7 +456,7 @@ function RoomDetail({ room }: { room: string | null }) {
           <div className="grid grid-cols-2 gap-x-3">
             <Datum
               label="state"
-              value={String(airlock.airlock_state)}
+              value={String(airlock.airlock_state ?? '\u2014').toUpperCase()}
               tone={airlock.airlock_state === 'pressurized' ? 'ok' : 'warn'}
             />
             <Datum label="inner door" value={String(airlock.inner_door)} />
@@ -375,13 +476,70 @@ function RoomDetail({ room }: { room: string | null }) {
   );
 }
 
-function CrewStrip({ crew }: { crew: string[] }) {
+const SURVEY_FIELDS = ['mood', 'stress', 'fatigue', 'sleep_quality'] as const;
+
+/**
+ * The latest survey scores per crew member (D-9).
+ *
+ * Survey events are one per crew member with flat scores, and the event payload is the raw envelope,
+ * so its `entity` names the crew member. Each field takes the newest value seen for that person:
+ * `sleep_quality` only arrives in the start-of-day survey and must not be blanked by the evening one.
+ * A legacy `{surveys: {crew-n: {...}}}` map is still accepted.
+ */
+function latestSurveys(): Map<string, Record<string, unknown>> {
+  const out = new Map<string, Record<string, unknown>>();
+  const events = live.services.get('mhe')?.events ?? [];
+  for (const event of events) {
+    if (event.name !== 'survey') continue;
+    const payload = event.payload;
+    const entries: Array<[string, Record<string, unknown>]> = [];
+    if (payload.surveys && typeof payload.surveys === 'object') {
+      for (const [crew, scores] of Object.entries(payload.surveys as Record<string, unknown>)) {
+        if (scores && typeof scores === 'object') entries.push([crew, scores as Record<string, unknown>]);
+      }
+    } else {
+      const crew = payload.entity ?? payload.crew_id ?? payload.crew;
+      const body = (payload.data && typeof payload.data === 'object' ? payload.data : payload) as Record<string, unknown>;
+      if (typeof crew === 'string') entries.push([crew, body]);
+    }
+    // Events are newest first, so a field already set is the more recent reading.
+    for (const [crew, scores] of entries) {
+      const merged = out.get(crew) ?? {};
+      for (const field of SURVEY_FIELDS) {
+        if (merged[field] === undefined && scores[field] !== undefined && scores[field] !== null) merged[field] = scores[field];
+      }
+      out.set(crew, merged);
+    }
+  }
+  return out;
+}
+
+/**
+ * A heartbeat trace whose period is the *sampled* heart rate: the trace holds two beats and scrolls
+ * one beat per `60 / bpm` seconds. With no reading it is drawn flat and still.
+ */
+function PulseLine({ bpm, tone }: { bpm: number | null; tone: string }) {
+  // One beat is exactly 40 units wide, the width of the viewBox.
+  const beat = 'l6 0 l2 -3 l2 3 l3 0 l2 -9 l2 15 l2 -8 l2 2 l4 0 l3 -2 l3 2 l9 0';
+  const beating = bpm !== null && bpm > 0;
+  return (
+    <svg viewBox="0 0 40 20" className="h-4 w-16 flex-none overflow-hidden" aria-hidden>
+      <path
+        className={beating ? 'pulse-trace' : undefined}
+        style={{ stroke: tone, animationDuration: beating ? `${(60 / (bpm ?? 60)).toFixed(3)}s` : undefined }}
+        d={beating ? `M0 10 ${beat} ${beat}` : 'M0 10 l80 0'}
+        fill="none"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
+
+function CrewStrip({ crew, limits }: { crew: string[]; limits: CrewLimits }) {
   useLive();
-  const survey = useMemo(() => {
-    const service = live.services.get('mhe');
-    const event = service?.events.find((entry) => entry.name === 'survey');
-    return (event?.payload.surveys ?? event?.payload ?? null) as Record<string, unknown> | null;
-  }, [live.getVersion()]);
+  const surveys = useMemo(latestSurveys, [live.getVersion()]);
 
   return (
     <Panel>
@@ -392,16 +550,21 @@ function CrewStrip({ crew }: { crew: string[] }) {
           const hr = toNumber(vitals.heart_rate_bpm);
           const temp = toNumber(vitals.body_temperature_k);
           const spo2 = toNumber(vitals.spo2_pct);
-          const elevated = hr !== null && (hr > 110 || hr < 50);
-          const febrile = temp !== null && temp > 310.15;
-          const own = (survey?.[id] ?? {}) as Record<string, unknown>;
+          const hrTone = hr === null || limits.hrMax === null ? 'inert' : hr > limits.hrMax ? 'crit' : 'ok';
+          const tempTone = temp === null || limits.tempMaxK === null ? 'inert' : temp > limits.tempMaxK ? 'crit' : 'neutral';
+          const spo2Tone = spo2 === null || limits.spo2Min === null ? 'inert' : spo2 < limits.spo2Min ? 'crit' : 'neutral';
+          const own = surveys.get(id) ?? {};
           return (
             <div key={id} className="rounded border border-base-700 bg-base-950/50 px-2 py-1.5">
               <div className="flex items-center gap-2">
                 <span className="telemetry-readout text-2xs font-bold text-mhe">{id}</span>
-                <Pill tone={elevated ? 'crit' : 'ok'}>{num(hr, 0)} bpm</Pill>
-                <Pill tone={febrile ? 'warn' : 'neutral'}>{kelvinToC(temp, 1)}</Pill>
-                <Pill tone={spo2 !== null && spo2 < 94 ? 'warn' : 'neutral'}>SpO2 {num(spo2, 0)}%</Pill>
+                <PulseLine
+                  bpm={hr}
+                  tone={hrTone === 'crit' ? 'var(--alarm)' : hrTone === 'ok' ? 'var(--nominal)' : 'var(--inert)'}
+                />
+                <Pill tone={hrTone}>{num(hr, 0)} bpm</Pill>
+                <Pill tone={tempTone}>{kelvinToC(temp, 1)}</Pill>
+                <Pill tone={spo2Tone}>SpO2 {num(spo2, 0)}%</Pill>
                 <span className="ml-auto telemetry-readout text-2xs text-ink-500">
                   {String(vitals.location ?? '\u2014')}
                 </span>
@@ -416,7 +579,7 @@ function CrewStrip({ crew }: { crew: string[] }) {
           );
         })}
       </div>
-      {!survey ? (
+      {surveys.size === 0 ? (
         <p className="mt-1.5 text-2xs text-ink-500">
           survey metrics appear with the next <span className="telemetry-readout">events/survey</span> emission
         </p>

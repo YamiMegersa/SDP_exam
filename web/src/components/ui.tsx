@@ -35,7 +35,7 @@ export function PanelHead({
     <header className="mb-2 flex items-baseline justify-between gap-2">
       <div className="flex min-w-0 items-center gap-1.5">
         {icon ? <span className="text-ink-400">{icon}</span> : null}
-        <h2 className="truncate text-xs font-medium uppercase tracking-wider text-ink-300">{title}</h2>
+        <h2 className="truncate text-xs2 font-medium uppercase tracking-wider text-ink-300">{title}</h2>
         {hint ? <span className="truncate text-2xs text-ink-500">{hint}</span> : null}
       </div>
       {right ? <div className="flex flex-none items-center gap-1">{right}</div> : null}
@@ -58,7 +58,10 @@ const TONES = {
 
 export type Tone = keyof typeof TONES;
 
-/** Primary telemetry readout: big, monospaced, tabular. */
+/**
+ * Primary telemetry readout: big, monospaced, tabular. `md` and `lg` are the guide's 20 / 24 px
+ * primary readout; a neutral primary value is pure white, as the hierarchy table specifies.
+ */
 export function Readout({
   value,
   unit,
@@ -74,13 +77,14 @@ export function Readout({
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }) {
-  const scale = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-sm' : 'text-lg';
+  const scale = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-sm' : 'text-xl';
+  const colour = tone === 'neutral' && size !== 'sm' ? 'text-white' : TONES[tone];
   return (
     <div className={`min-w-0 ${className}`}>
       {label ? (
-        <div className="mb-0.5 truncate text-2xs font-medium uppercase tracking-wider text-ink-400">{label}</div>
+        <div className="mb-0.5 truncate text-xs2 font-medium uppercase tracking-wider text-ink-300">{label}</div>
       ) : null}
-      <div className={`telemetry-readout ${scale} font-bold leading-tight ${TONES[tone]}`}>
+      <div className={`telemetry-readout ${scale} font-bold leading-tight ${colour}`}>
         {value}
         {unit ? <span className="ml-1 text-xs font-normal text-ink-400">{unit}</span> : null}
       </div>
@@ -90,7 +94,7 @@ export function Readout({
 
 export function Led({ state, className = '' }: { state: 'ok' | 'warn' | 'crit' | 'inert'; className?: string }) {
   const cls =
-    state === 'ok' ? 'led-nominal' : state === 'warn' ? 'led-caution' : state === 'crit' ? 'led-alarm' : 'led-inert';
+    state === 'ok' ? 'led-nominal' : state === 'warn' ? 'led-caution' : state === 'crit' ? 'led-alert' : 'led-inert';
   return <span className={`led ${cls} ${className}`} aria-hidden />;
 }
 
@@ -181,7 +185,7 @@ export function Field({
   return (
     <label className={`block ${className}`}>
       <span className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="text-2xs font-medium uppercase tracking-wider text-ink-400">{label}</span>
+        <span className="text-xs2 font-medium uppercase tracking-wider text-ink-300">{label}</span>
         {hint ? <span className="telemetry-readout text-2xs text-ink-500">{hint}</span> : null}
       </span>
       {children}
@@ -197,20 +201,9 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputClass} telemetry-readout ${props.className ?? ''}`} />;
 }
 
+/** The chevron is drawn by `.arl-select` in index.css, so no colour literal lives here. */
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={`${inputClass} appearance-none bg-[length:10px] pr-6 ${props.className ?? ''}`}
-      style={{
-        backgroundImage:
-          "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='%2364748b'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none'/%3E%3C/svg%3E\")",
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'right 8px center',
-        ...props.style,
-      }}
-    />
-  );
+  return <select {...props} className={`${inputClass} arl-select appearance-none pr-6 ${props.className ?? ''}`} />;
 }
 
 export function Modal({
@@ -234,7 +227,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 pt-[8vh]">
       <div
-        className={`w-full ${width} rounded-md border border-base-600 bg-base-900 shadow-2xl`}
+        className={`w-full ${width} rounded-md border border-base-600 bg-base-800 shadow-2xl`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -273,7 +266,7 @@ export function Datum({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-2 border-b border-base-700/50 py-1 last:border-0">
-      <span className="truncate text-2xs uppercase tracking-wide text-ink-400">{label}</span>
+      <span className="truncate text-xs2 uppercase tracking-wider text-ink-300">{label}</span>
       <span className={`flex-none text-xs ${mono ? 'telemetry-readout' : ''} ${TONES[tone]}`}>{value}</span>
     </div>
   );

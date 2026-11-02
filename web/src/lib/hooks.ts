@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from './api';
 import { cachedTargets, loadTargets } from './catalogue';
 import { live, type Ring } from './live';
-import type { DerivedReport, Sample, Target } from './types';
+import type { AlertLimit, DerivedReport, Sample, Target } from './types';
 
 /** Re-renders at 10 Hz (the client's own notify rate) whenever live data changes. */
 export function useLive(): number {
@@ -146,6 +146,65 @@ export function useDerived(intervalMs = 5_000): Map<string, DerivedReport> {
   }, [intervalMs]);
 
   return reports;
+}
+
+/**
+ * Alert limits, as the ARL API publishes them (`GET /api/alert-limits/:service`).
+ *
+ * The design system supplies colours and banding; the numbers that decide *which* colour come from
+ * here, never from the style guide's illustrative figures. Cached for 300 s per service, mirroring the
+ * server's own cache and the services' re-read period. A failed or empty answer is reported as
+ * `unavailable`: callers then render the value in `inert` with the band suppressed rather than
+ * guessing a threshold.
+ */
+export interface Limits {
+  status: 'loading' | 'ready' | 'unavailable';
+  /** The limit's value, or `null` when it is absent or the limits could not be read. */
+  value: (key: string) => number | null;
+}
+
+const LIMITS_TTL_MS = 300_000;
+const limitsCache = new Map<string, { at: number; rows: AlertLimit[] | null; pending?: Promise<void> }>();
+
+function lookupLimit(rows: AlertLimit[] | null, key: string): number | null {
+  if (!rows) return null;
+  // Exact key first; a service-prefixed key (`mhe.air.co2_warn_ppm`) is accepted as the same limit.
+  const hit = rows.find((row) => row.key === key) ?? rows.find((row) => row.key.endsWith(`.${key}`));
+  return hit && Number.isFinite(hit.value) ? hit.value : null;
+}
+
+export function useLimits(service: string): Limits {
+  const [, setVersion] = useState(0);
+  const entry = limitsCache.get(service);
+  const fresh = entry !== undefined && Date.now() - entry.at < LIMITS_TTL_MS;
+
+  useEffect(() => {
+    let cancelled = false;
+    const current = limitsCache.get(service);
+    if (current && Date.now() - current.at < LIMITS_TTL_MS && !current.pending) return;
+    const pending =
+      current?.pending ??
+      api
+        .alertLimits(service)
+        .then((rows) => {
+          limitsCache.set(service, { at: Date.now(), rows: Array.isArray(rows) && rows.length > 0 ? rows : null });
+        })
+        .catch(() => {
+          limitsCache.set(service, { at: Date.now(), rows: null });
+        });
+    if (!current?.pending) limitsCache.set(service, { at: current?.at ?? 0, rows: current?.rows ?? null, pending });
+    void pending.then(() => {
+      if (!cancelled) setVersion((v) => v + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [service, fresh]);
+
+  const rows = entry?.rows ?? null;
+  const status: Limits['status'] =
+    entry === undefined || (entry.pending && entry.at === 0) ? 'loading' : rows ? 'ready' : 'unavailable';
+  return { status, value: (key: string) => lookupLimit(rows, key) };
 }
 
 /** Persisted operator identity: the console should not re-ask on every command. */

@@ -12,14 +12,14 @@ import {
   Thermometer,
   Wind,
 } from 'lucide-react';
-import { ScanCanvas } from '../components/ScanCanvas';
+import { ScanCanvas, type ScanStatus } from '../components/ScanCanvas';
 import { LineChart } from '../components/charts';
 import { CommandFeedback, CommandLog, useCommand } from '../components/commands';
 import { measureText, useMeasures, verdictTone } from '../components/derived';
 import { Button, Datum, Field, Panel, PanelHead, Pill, Readout, SectionLabel, Select, TextInput } from '../components/ui';
 import { clockTime, hz, kelvinToC, num, pct, radiansToDeg, since, toNumber } from '../lib/format';
 import { targetLabel } from '../lib/catalogue';
-import { useLive, useResearcher, useSeries, useTargets } from '../lib/hooks';
+import { useLimits, useLive, useResearcher, useSeries, useTargets } from '../lib/hooks';
 import { live, type ServiceRuntime } from '../lib/live';
 import type { EntityDef } from '../lib/types';
 
@@ -34,7 +34,20 @@ import type { EntityDef } from '../lib/types';
  * consequence (a hole in the image).
  */
 
-const HOT_K = 348.15; // 75 C - the design system's overheat threshold.
+/**
+ * Temperature bands from `GET /api/alert-limits/rta`. Either may be `null` when the limits could not
+ * be read; the matrix then draws no temperature band at all rather than guessing one.
+ */
+interface ThermalLimits {
+  warnK: number | null;
+  critK: number | null;
+}
+
+function thermalBand(temp: number | null, limits: ThermalLimits): 'ok' | 'warn' | 'crit' | null {
+  if (temp === null || limits.warnK === null || limits.critK === null) return null;
+  return temp >= limits.critK ? 'crit' : temp >= limits.warnK ? 'warn' : 'ok';
+}
+
 const FAULT_FAULT = new Set([
   'drive_stall',
   'overheat',
@@ -51,6 +64,12 @@ export function RtaPage() {
   // Subscribes to the catalogue so the pointing is re-labelled once it arrives.
   useTargets();
   const measures = useMeasures('rta');
+  const limits = useLimits('rta');
+  const thermal: ThermalLimits = {
+    warnK: limits.value('dish_temperature.warn_k'),
+    critK: limits.value('dish_temperature.crit_k'),
+  };
+  const minActive = limits.value('availability.min_active');
 
   if (!service?.topology) {
     return (
@@ -66,6 +85,13 @@ export function RtaPage() {
   const online = service.online;
   const observing = live.state('rta', 'main', 'scan_state');
   const target = stateObject(service, 'main', 'target');
+  const mainStowed = live.state('rta', 'main', 'stowed') === true;
+  const scanStatus: ScanStatus = windStow || mainStowed ? 'stowed' : observing === 'running' ? 'scanning' : 'idle';
+  const hotCount =
+    thermal.critK === null
+      ? null
+      : dishes.filter((d) => (toNumber(live.sample('rta', 'normal', d.id)?.data.system_temperature_k) ?? 0) >= thermal.critK!)
+          .length;
 
   return (
     <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto p-2 xl:grid-cols-[minmax(0,1fr)_350px] xl:overflow-hidden">
@@ -88,9 +114,14 @@ export function RtaPage() {
               raster={service.raster}
               target={targetLabel(target) ?? service.scan.target}
               bandHz={service.scan.bandHz}
+              status={scanStatus}
             />
             <div className="grid grid-cols-2 gap-x-3 gap-y-2 lg:grid-cols-1">
-              <Readout label="active dishes" value={`${active}/${dishes.length}`} tone="rta" />
+              <Readout
+                label={minActive === null ? 'active dishes' : `active dishes \u00b7 min ${minActive}`}
+                value={`${active}/${dishes.length}`}
+                tone={minActive === null ? 'inert' : active >= minActive ? 'ok' : 'crit'}
+              />
               <Readout
                 label="pointing error"
                 value={measureText(measures.get('rta.pointing_error'))}
@@ -137,7 +168,7 @@ export function RtaPage() {
             icon={<Gauge size={13} />}
             right={<MatrixLegend />}
           />
-          <DishMatrix service={service} dishes={dishes} selected={selected} onSelect={setSelected} />
+          <DishMatrix dishes={dishes} thermal={thermal} selected={selected} onSelect={setSelected} />
           <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-2xs text-ink-400 sm:grid-cols-4">
             <Datum label="enabled" value={`${dishes.filter((d) => live.state('rta', d.id, 'enabled') !== false).length}`} />
             <Datum label="stowed" value={`${dishes.filter((d) => live.state('rta', d.id, 'stowed') === true).length}`} />
@@ -150,8 +181,9 @@ export function RtaPage() {
               }).length}`}
             />
             <Datum
-              label="hot >75C"
-              value={`${dishes.filter((d) => (toNumber(live.sample('rta', 'normal', d.id)?.data.system_temperature_k) ?? 0) > HOT_K).length}`}
+              label={thermal.critK === null ? 'over crit' : `over ${kelvinToC(thermal.critK, 0)}`}
+              value={hotCount === null ? '\u2014' : `${hotCount}`}
+              tone={hotCount === null ? 'inert' : hotCount > 0 ? 'crit' : 'neutral'}
             />
           </div>
         </Panel>
@@ -159,7 +191,7 @@ export function RtaPage() {
 
       <div className="flex min-h-0 flex-col gap-2 xl:overflow-y-auto scroll-thin">
         <ArrayControls service={service} dishes={dishes} />
-        <DishControls dish={selected} />
+        <DishControls dish={selected} thermal={thermal} />
         <Panel>
           <PanelHead title="Command log" hint="last 8" />
           <CommandLog service="rta" />
@@ -181,12 +213,12 @@ function TrendStrip({ service }: { service: ServiceRuntime }) {
         <span className="text-2xs uppercase tracking-wider text-ink-400">mean dish power</span>
         <span className="telemetry-readout text-2xs text-ink-300">{num(avgPower?.value, 0)} W</span>
       </div>
-      <LineChart points={power.points} color="#38bdf8" height={44} unit="W" digits={0} />
+      <LineChart points={power.points} color="var(--rta)" height={44} unit="W" digits={0} />
       <div className="mb-0.5 mt-1 flex items-baseline justify-between">
         <span className="text-2xs uppercase tracking-wider text-ink-400">mean receiver temp</span>
         <span className="telemetry-readout text-2xs text-ink-300">{kelvinToC(avgTemp?.value)}</span>
       </div>
-      <LineChart points={temp.points} color="#f59e0b" height={44} digits={0} />
+      <LineChart points={temp.points} color="var(--caution)" height={44} digits={0} />
     </div>
   );
 }
@@ -194,10 +226,10 @@ function TrendStrip({ service }: { service: ServiceRuntime }) {
 function MatrixLegend() {
   return (
     <div className="flex items-center gap-1.5 text-2xs text-ink-500">
-      <LegendSwatch className="bg-ok/70" label="nominal" />
-      <LegendSwatch className="bg-warn/70" label="stow" />
-      <LegendSwatch className="bg-crit/70" label="fault" />
-      <LegendSwatch className="bg-inert/70" label="off" />
+      <LegendSwatch className="bg-ok/70" label="in service" />
+      <LegendSwatch className="bg-warn/70 stow-pulse" label="stowed" />
+      <LegendSwatch className="bg-crit/70" label="hot / fault" />
+      <LegendSwatch className="bg-inert/70" label="disabled" />
     </div>
   );
 }
@@ -215,15 +247,19 @@ function LegendSwatch({ className, label }: { className: string; label: string }
  * 10x10 tile grid, positioned from the topology's own `meta.row` / `meta.col`
  * rather than array order - the field is a real geometry, and tiles should stay
  * where the dishes are even if the topology is republished in a different order.
+ *
+ * Cells are the guide's fixed 24 px squares, so the matrix is a square of squares. Fill carries the
+ * status, the border the temperature band, and only a stowed dish pulses (with a corner marker so
+ * stow survives a greyscale screenshot). At 24 px the id is hover-only, in the four-fact tooltip.
  */
 function DishMatrix({
-  service,
   dishes,
+  thermal,
   selected,
   onSelect,
 }: {
-  service: ServiceRuntime;
   dishes: EntityDef[];
+  thermal: ThermalLimits;
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -244,9 +280,9 @@ function DishMatrix({
   }, [dishes]);
 
   return (
-    <div className="flex flex-col gap-[3px]">
+    <div className="flex flex-col gap-[3px]" role="grid" aria-label="Dish matrix">
       {rows.map((row) => (
-        <div key={row[0]?.id} className="grid grid-cols-10 gap-[3px]">
+        <div key={row[0]?.id} className="flex gap-[3px]" role="row">
           {row.map((dish) => {
             const sample = live.sample('rta', 'normal', dish.id) ?? live.sample('rta', 'scan', dish.id);
             const enabled = live.state('rta', dish.id, 'enabled') !== false;
@@ -254,30 +290,49 @@ function DishMatrix({
             const temp = toNumber(sample?.data.system_temperature_k);
             const fault = typeof sample?.data.fault_code === 'string' ? sample.data.fault_code : 'none';
             const isFault = FAULT_FAULT.has(fault);
-            const hot = temp !== null && temp > HOT_K;
-            const state = !enabled ? 'off' : isFault || hot ? 'fault' : stowed ? 'stow' : 'ok';
-            const palette =
-              state === 'ok'
-                ? 'border-ok/40 bg-ok/15 text-ok hover:bg-ok/25'
-                : state === 'stow'
-                  ? 'border-warn/50 bg-warn/15 text-warn hover:bg-warn/25'
+            const band = thermalBand(temp, thermal);
+            const hot = band === 'crit';
+            const state = !enabled ? 'disabled' : isFault ? 'fault' : hot ? 'overheat' : stowed ? 'stowed' : 'in service';
+            const fill =
+              state === 'in service'
+                ? 'bg-ok/25 hover:bg-ok/40'
+                : state === 'stowed'
+                  ? 'bg-warn/30 hover:bg-warn/45 stow-pulse'
                   : state === 'fault'
-                    ? 'border-crit/60 bg-crit/20 text-crit hover:bg-crit/30'
-                    : 'border-base-600 bg-base-800/60 text-ink-500 hover:bg-base-700';
+                    ? 'bg-crit/45 shadow-alarm hover:bg-crit/60'
+                    : state === 'overheat'
+                      ? 'bg-crit/25 hover:bg-crit/40'
+                      : 'bg-inert/25 hover:bg-inert/40';
+            const border =
+              band === 'crit' ? 'border-crit' : band === 'warn' ? 'border-warn' : band === 'ok' ? 'border-ok/50' : 'border-base-600';
+            const subarray = live.state('rta', dish.id, 'subarray');
+            const ra = toNumber(sample?.data.pointing_offset_ra_rad);
+            const dec = toNumber(sample?.data.pointing_offset_dec_rad);
+            const offset =
+              ra !== null && dec !== null ? `offset ${num(ra * 1000, 2)} / ${num(dec * 1000, 2)} mrad` : 'offset \u2014';
+            const tooltip = [
+              dish.id,
+              `sub-array ${String(subarray ?? '\u2014')}`,
+              `${kelvinToC(temp)}${band ? ` (${band})` : ''}`,
+              offset,
+            ].join(' \u00b7 ');
             const isSelected = selected === dish.id;
             return (
               <button
                 key={dish.id}
                 onClick={() => onSelect(dish.id)}
-                title={`${dish.id} \u00b7 ${state}${fault !== 'none' ? ` (${fault})` : ''} \u00b7 ${kelvinToC(temp)} \u00b7 ${num(sample?.data.power_w, 0)} W`}
-                className={`relative flex h-7 items-center justify-center rounded-sm border transition-colors ${palette} ${
+                title={`${tooltip}${state !== 'in service' ? ` \u00b7 ${state}${fault !== 'none' ? ` (${fault})` : ''}` : ''}`}
+                aria-label={tooltip}
+                className={`relative h-6 w-6 flex-none rounded-sm border transition-colors ${fill} ${border} ${
                   isSelected ? 'ring-2 ring-rta ring-offset-1 ring-offset-base-900' : ''
                 }`}
               >
-                <span className="telemetry-readout text-[9px] leading-none opacity-80">
-                  {dish.id.slice(-3)}
-                </span>
-                {hot ? <span className="absolute right-0.5 top-0.5 h-1 w-1 rounded-full bg-crit" /> : null}
+                {stowed ? (
+                  <span
+                    className="absolute right-0 top-0 h-0 w-0 border-l-4 border-t-4 border-l-transparent border-t-warn"
+                    aria-hidden
+                  />
+                ) : null}
               </button>
             );
           })}
@@ -444,7 +499,7 @@ function ArrayControls({ service, dishes }: { service: ServiceRuntime; dishes: E
   );
 }
 
-function DishControls({ dish }: { dish: string | null }) {
+function DishControls({ dish, thermal }: { dish: string | null; thermal: ThermalLimits }) {
   const { send, pending, error, message } = useCommand();
   const [code] = useResearcher();
   const [azimuth, setAzimuth] = useState('');
@@ -470,7 +525,8 @@ function DishControls({ dish }: { dish: string | null }) {
   const calibration = toNumber(live.state('rta', dish, 'last_calibration'));
   const fault = String(sample?.data.fault_code ?? 'none');
   const temp = toNumber(sample?.data.system_temperature_k);
-  const hot = temp !== null && temp > HOT_K;
+  const band = thermalBand(temp, thermal);
+  const hot = band === 'crit';
   const disabled = code.trim().length < 3;
 
   const commandedObject = (commanded ?? {}) as Record<string, unknown>;
@@ -488,7 +544,7 @@ function DishControls({ dish }: { dish: string | null }) {
         }
       />
       <div className="mb-2 grid grid-cols-2 gap-x-3">
-        <Datum label="system temp" value={kelvinToC(temp)} tone={hot ? 'crit' : 'neutral'} />
+        <Datum label="system temp" value={kelvinToC(temp)} tone={band ?? 'inert'} />
         <Datum label="receiver temp" value={kelvinToC(sample?.data.temperature_k)} />
         <Datum label="azimuth" value={radiansToDeg(sample?.data.azimuth_rad)} />
         <Datum label="elevation" value={radiansToDeg(sample?.data.elevation_rad)} />
@@ -602,8 +658,11 @@ function DishControls({ dish }: { dish: string | null }) {
           <RotateCw size={12} /> request recalibration
         </Button>
         <p className="flex items-center gap-1 text-2xs text-ink-500">
-          <Thermometer size={11} /> overheat limit {kelvinToC(HOT_K, 0)} · commands are verified against the ARL
-          researcher directory
+          <Thermometer size={11} />{' '}
+          {thermal.critK === null
+            ? 'overheat limit unavailable (ARL limits unreadable)'
+            : `overheat limit ${kelvinToC(thermal.critK, 0)}`}{' '}
+          · commands are verified against the ARL researcher directory
         </p>
         <CommandFeedback error={error} message={message} />
       </div>

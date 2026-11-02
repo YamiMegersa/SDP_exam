@@ -30,14 +30,22 @@ export default {
         rta: '#38bdf8',
         mhe: '#fb923c',
         opg: '#facc15',
-        replay: '#a855f7',
+        // Replay: the accent, plus the two violets the top bar shifts to (design system §7).
+        replay: {
+          DEFAULT: '#a855f7',
+          900: '#581c87',
+          950: '#2e1065',
+        },
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Roboto Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
+        // 10 px: status tags / badges (design system §3).
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],
+        // 11 px: widget titles / labels. One pixel above the badge so rank reads as hierarchy.
+        xs2: ['0.6875rem', { lineHeight: '1rem' }],
       },
       boxShadow: {
         alarm: '0 0 12px rgba(239, 68, 68, 0.5)',

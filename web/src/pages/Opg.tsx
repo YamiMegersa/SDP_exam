@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { BatteryCharging, Fuel, Gauge, Power, Sun, Zap } from 'lucide-react';
 import { LineChart } from '../components/charts';
 import { CommandFeedback, CommandLog, useCommand } from '../components/commands';
-import { DerivedDatum, useMeasures } from '../components/derived';
+import { DerivedDatum, measureText, useMeasures } from '../components/derived';
 import { Button, Datum, Field, Panel, PanelHead, Pill, SectionLabel, Select, TextInput } from '../components/ui';
 import { clockTime, num, pct, signed, toNumber as number, watts } from '../lib/format';
-import { useLive, useResearcher, useSeries } from '../lib/hooks';
+import { useLimits, useLive, useResearcher, useSeries } from '../lib/hooks';
 import { live } from '../lib/live';
 
 /**
@@ -18,12 +18,29 @@ import { live } from '../lib/live';
  *
  * Flow animation speed is proportional to the power on that link, so a stalled
  * diesel generator is visibly idle rather than merely numerically zero.
+ *
+ * The SOC and fuel bands come from `GET /api/alert-limits/opg` (`battery.warn_pct`, `fuel.min_pct`)
+ * and the live reserve setpoint; with the limits unreadable the values are drawn `inert`, unbanded.
  */
+
+type SocBand = 'ok' | 'warn' | 'crit';
+
+/** Emerald above the warn limit, amber down to the reserve, crimson below it; null without limits. */
+function socBand(soc: number | null, warnPct: number | null, reservePct: number | null): SocBand | null {
+  if (soc === null || warnPct === null) return null;
+  if (reservePct !== null && soc < reservePct) return 'crit';
+  return soc < warnPct ? 'warn' : 'ok';
+}
+
+const kw = (w: number) => `${(Math.abs(w) / 1000).toFixed(1)} kW`;
 
 export function OpgPage() {
   useLive();
   const service = live.services.get('opg');
   const measures = useMeasures('opg');
+  const limits = useLimits('opg');
+  const warnPct = limits.value('battery.warn_pct');
+  const fuelMin = limits.value('fuel.min_pct');
 
   if (!service?.topology) {
     return (
@@ -33,7 +50,8 @@ export function OpgPage() {
     );
   }
 
-  const total = live.sample('opg', 'power', 'global')?.data ?? {};
+  const totalSample = live.sample('opg', 'power', 'global');
+  const total = totalSample?.data ?? {};
   const solar = live.sample('opg', 'power', 'solar')?.data ?? {};
   const battery = live.sample('opg', 'power', 'batteries')?.data ?? {};
   const diesel = live.sample('opg', 'power', 'diesel')?.data ?? {};
@@ -41,16 +59,23 @@ export function OpgPage() {
   const generation = number(total.total_generation_w) ?? 0;
   const load = number(total.total_load_w) ?? 0;
   const margin = generation - load;
+  const reservePct = number(live.state('opg', 'batteries', 'reserve_pct'));
+  const dieselW = number(diesel.power_output_w) ?? 0;
+  const dieselDormant = diesel.generator_status !== 'running' || Math.abs(dieselW) < 1;
+  const fuel = number(diesel.fuel_level_pct);
+  const fuelTone = fuel === null || fuelMin === null ? 'inert' : fuel < fuelMin ? 'crit' : 'neutral';
 
   return (
     <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto p-2 xl:grid-cols-[minmax(0,1fr)_350px] xl:overflow-hidden">
       <div className="flex min-h-0 flex-col gap-2 xl:overflow-y-auto scroll-thin">
-        <Panel>
+        {/* shrink-0: the fixed-aspect diagram cannot be squeezed, so the column scrolls instead of
+            the flex parent clipping the diesel and load nodes under the row below. */}
+        <Panel className="shrink-0">
           <PanelHead
             title="Energy flow"
             // An expression, not a plain attribute: JSX attribute literals keep the backslash,
             // so "\u2192" would render as text instead of an arrow.
-            hint={'solar \u2192 bus \u2190 diesel, bus \u2194 battery, bus \u2192 base load'}
+            hint={'solar \u2192 bus \u2190 diesel, bus \u2194 battery, bus \u2192 lab load'}
             icon={<Zap size={13} />}
             right={
               <>
@@ -64,16 +89,23 @@ export function OpgPage() {
             generation={generation}
             load={load}
             solarW={number(solar.power_output_w) ?? 0}
-            dieselW={number(diesel.power_output_w) ?? 0}
+            dieselW={dieselW}
+            dieselDormant={dieselDormant}
             batteryW={number(battery.battery_power_w) ?? 0}
             soc={number(battery.state_of_charge_pct)}
-            fuel={number(diesel.fuel_level_pct)}
+            fuel={fuel}
           />
         </Panel>
 
         <div className="grid gap-2 md:grid-cols-3">
-          <MarginHud generation={generation} load={load} margin={margin} />
-          <SocGauge soc={number(battery.state_of_charge_pct)} batteryW={number(battery.battery_power_w)} />
+          <MarginHud generation={generation} load={load} margin={margin} known={totalSample !== undefined} />
+          <SocGauge
+            soc={number(battery.state_of_charge_pct)}
+            batteryW={number(battery.battery_power_w)}
+            warnPct={warnPct}
+            reservePct={reservePct}
+            remaining={measureText(measures.get('opg.autonomy'))}
+          />
           <Panel>
             <PanelHead title="Generation sources" icon={<Sun size={13} />} />
             <div className="grid grid-cols-1 gap-x-3">
@@ -85,9 +117,9 @@ export function OpgPage() {
                 value={String(solar.inverter_status ?? '\u2014')}
                 tone={solar.inverter_status === 'fault' ? 'crit' : 'neutral'}
               />
-              <Datum label="diesel output" value={watts(diesel.power_output_w)} tone="opg" />
-              <Datum label="generator" value={String(diesel.generator_status ?? '\u2014')} />
-              <Datum label="fuel" value={pct(diesel.fuel_level_pct)} tone={number(diesel.fuel_level_pct) !== null && (number(diesel.fuel_level_pct) ?? 100) < 20 ? 'crit' : 'neutral'} />
+              <Datum label="diesel output" value={watts(diesel.power_output_w)} tone={dieselDormant ? 'inert' : 'opg'} />
+              <Datum label="generator" value={String(diesel.generator_status ?? '\u2014')} tone={dieselDormant ? 'inert' : 'neutral'} />
+              <Datum label="fuel" value={pct(diesel.fuel_level_pct)} tone={fuelTone} />
               <Datum label="runtime" value={`${num(diesel.runtime_h, 1)} h`} />
             </div>
           </Panel>
@@ -95,7 +127,7 @@ export function OpgPage() {
 
         <Panel>
           <PanelHead title="Trends" hint="generation margin, load and state of charge" icon={<Gauge size={13} />} />
-          <TrendGrid />
+          <TrendGrid warnPct={warnPct} />
         </Panel>
       </div>
 
@@ -130,11 +162,16 @@ export function OpgPage() {
   );
 }
 
+/** One arrowhead per edge colour: a marker cannot inherit the stroke of the path that uses it. */
+const ARROWS = ['opg', 'caution', 'nominal', 'rta', 'inert'] as const;
+type Arrow = (typeof ARROWS)[number];
+
 function EnergyFlow({
   generation,
   load,
   solarW,
   dieselW,
+  dieselDormant,
   batteryW,
   soc,
   fuel,
@@ -143,47 +180,91 @@ function EnergyFlow({
   load: number;
   solarW: number;
   dieselW: number;
+  dieselDormant: boolean;
   batteryW: number;
   soc: number | null;
   fuel: number | null;
 }) {
   const flowClass = (watts_: number) =>
-    Math.abs(watts_) < 1 ? 'flow-line flow-line-idle' : watts_ > 4000 ? 'flow-line flow-line-fast' : 'flow-line';
+    Math.abs(watts_) < 1 ? 'flow-line flow-line-idle' : Math.abs(watts_) > 4000 ? 'flow-line flow-line-fast' : 'flow-line';
+  const batteryIdle = Math.abs(batteryW) < 1;
+  const batteryArrow: Arrow = batteryIdle ? 'inert' : batteryW > 0 ? 'nominal' : 'caution';
+  const batteryWord = batteryIdle ? 'idle' : batteryW > 0 ? 'charging' : 'discharging';
+  const solarArrow: Arrow = Math.abs(solarW) < 1 ? 'inert' : 'opg';
+  const dieselArrow: Arrow = dieselDormant ? 'inert' : 'caution';
+  const edge = (arrow: Arrow) => ({ stroke: `var(--${arrow})` });
 
   return (
     <div className="rounded border border-base-700 bg-base-950/70">
-      <svg viewBox="0 0 720 320" className="h-auto w-full" role="img" aria-label="Energy flow diagram">
+      <svg viewBox="0 0 720 320" className="mx-auto h-auto max-h-[38vh] w-full" role="img" aria-label="Energy flow diagram">
         <defs>
-          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 z" fill="#facc15" />
-          </marker>
-          <marker id="arrow-dim" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 z" fill="#475569" />
-          </marker>
+          {ARROWS.map((arrow) => (
+            <marker key={arrow} id={`arrow-${arrow}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 z" style={{ fill: `var(--${arrow})` }} />
+            </marker>
+          ))}
         </defs>
 
-        {/* Links first, so nodes draw over the ends. */}
-        <g fill="none" strokeWidth="3" markerEnd="url(#arrow)">
-          <path d="M150 70 H300" className={flowClass(solarW)} stroke="#facc15" />
-          <path d="M150 250 H300" className={flowClass(dieselW)} stroke="#f59e0b" />
-          <path d="M420 160 H560" className={flowClass(batteryW)} stroke={batteryW >= 0 ? '#10b981' : '#f59e0b'} />
-          <path d="M360 200 V250 H300" className={flowClass(load)} stroke="#38bdf8" />
+        {/* Links first, so nodes draw over the ends. The battery link reverses when it discharges. */}
+        <g fill="none" strokeWidth="3">
+          <path d="M150 70 H300" className={flowClass(solarW)} style={edge(solarArrow)} markerEnd={`url(#arrow-${solarArrow})`} />
+          <path d="M150 250 H330 V205" className={flowClass(dieselDormant ? 0 : dieselW)} style={edge(dieselArrow)} markerEnd={`url(#arrow-${dieselArrow})`} />
+          <path
+            d={batteryW >= 0 ? 'M420 160 H560' : 'M560 160 H420'}
+            className={flowClass(batteryW)}
+            style={edge(batteryArrow)}
+            markerEnd={`url(#arrow-${batteryArrow})`}
+          />
+          <path d="M390 200 V265 H435" className={flowClass(load)} style={edge('rta')} markerEnd="url(#arrow-rta)" />
         </g>
 
-        <Node x={40} y={30} w={110} h={80} title="Solar PV" value={watts(solarW)} tone="#facc15" />
-        <Node x={40} y={210} w={110} h={80} title="Diesel" value={watts(dieselW)} tone="#f59e0b" note={fuel !== null ? `${fuel.toFixed(0)}% fuel` : undefined} />
-        <Node x={300} y={130} w={120} h={70} title="Bus" value={watts(generation)} tone="#38bdf8" note={`load ${watts(load)}`} />
-        <Node x={560} y={120} w={120} h={80} title="Battery" value={watts(Math.abs(batteryW))} tone="#10b981" note={soc !== null ? `${soc.toFixed(0)}% soc` : undefined} />
-        <Node x={240} y={250} w={140} h={60} title="Base load" value={watts(load)} tone="#94a3b8" />
+        {/* Edge labels: the kW on every link, so the picture reads without hovering. */}
+        <EdgeLabel x={225} y={60} text={kw(solarW)} arrow={solarArrow} />
+        <EdgeLabel x={225} y={240} text={dieselDormant ? 'dormant' : kw(dieselW)} arrow={dieselArrow} />
+        <EdgeLabel x={490} y={150} text={batteryIdle ? 'idle' : `${batteryWord} ${kw(batteryW)}`} arrow={batteryArrow} />
+        <EdgeLabel x={420} y={226} text={kw(load)} arrow="rta" />
 
-        <text x="215" y="60" fill="#64748b" fontSize="11" fontFamily="JetBrains Mono, monospace">
-          DC
-        </text>
-        <text x="480" y="150" fill="#64748b" fontSize="11" fontFamily="JetBrains Mono, monospace">
-          {batteryW >= 0 ? 'charge' : 'discharge'}
-        </text>
+        <Node x={40} y={30} w={110} h={80} title="Solar PV" value={watts(solarW)} tone="var(--opg)" />
+        <Node
+          x={40}
+          y={210}
+          w={110}
+          h={80}
+          title="Diesel"
+          value={dieselDormant ? 'dormant' : watts(dieselW)}
+          tone={dieselDormant ? 'var(--inert)' : 'var(--caution)'}
+          dim={dieselDormant}
+          note={fuel !== null ? `${fuel.toFixed(0)}% fuel` : undefined}
+        />
+        <Node x={300} y={130} w={120} h={70} title="Inverter / bus" value={watts(generation)} tone="var(--rta)" note={`load ${watts(load)}`} />
+        <Node
+          x={560}
+          y={120}
+          w={120}
+          h={80}
+          title="Battery"
+          value={watts(Math.abs(batteryW))}
+          tone={`var(--${batteryArrow})`}
+          note={`${batteryWord}${soc !== null ? ` \u00b7 ${soc.toFixed(0)}%` : ''}`}
+        />
+        <Node x={440} y={235} w={140} h={60} title="Lab load" value={watts(load)} tone="var(--ink-300)" />
       </svg>
     </div>
+  );
+}
+
+function EdgeLabel({ x, y, text, arrow }: { x: number; y: number; text: string; arrow: Arrow }) {
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor="middle"
+      style={{ fill: arrow === 'inert' ? 'var(--inert)' : 'var(--ink-300)' }}
+      fontSize="11"
+      fontFamily="JetBrains Mono, monospace"
+    >
+      {text}
+    </text>
   );
 }
 
@@ -196,6 +277,7 @@ function Node({
   value,
   note,
   tone,
+  dim = false,
 }: {
   x: number;
   y: number;
@@ -204,19 +286,22 @@ function Node({
   title: string;
   value: string;
   note?: string;
+  /** A CSS colour, normally `var(--token)`. */
   tone: string;
+  /** Dormant source: the whole node goes `inert` rather than showing a live-looking zero. */
+  dim?: boolean;
 }) {
   return (
     <g>
-      <rect x={x} y={y} width={w} height={h} rx="6" fill="#111827" stroke={tone} strokeWidth="1.5" />
-      <text x={x + 10} y={y + 20} fill="#94a3b8" fontSize="11" fontFamily="Inter, system-ui, sans-serif" letterSpacing="1">
+      <rect x={x} y={y} width={w} height={h} rx="6" style={{ fill: 'var(--panel)', stroke: tone }} strokeWidth="1.5" strokeDasharray={dim ? '4 3' : undefined} />
+      <text x={x + 10} y={y + 20} style={{ fill: dim ? 'var(--inert)' : 'var(--ink-300)' }} fontSize="11" fontFamily="Inter, system-ui, sans-serif" letterSpacing="1">
         {title.toUpperCase()}
       </text>
-      <text x={x + 10} y={y + 44} fill="#f1f5f9" fontSize="17" fontWeight="700" fontFamily="JetBrains Mono, monospace">
+      <text x={x + 10} y={y + 44} style={{ fill: dim ? 'var(--inert)' : 'var(--ink-100)' }} fontSize="17" fontWeight="700" fontFamily="JetBrains Mono, monospace">
         {value}
       </text>
       {note ? (
-        <text x={x + 10} y={y + 62} fill="#64748b" fontSize="11" fontFamily="JetBrains Mono, monospace">
+        <text x={x + 10} y={y + 62} style={{ fill: 'var(--ink-400)' }} fontSize="11" fontFamily="JetBrains Mono, monospace">
           {note}
         </text>
       ) : null}
@@ -224,23 +309,38 @@ function Node({
   );
 }
 
-function MarginHud({ generation, load, margin }: { generation: number; load: number; margin: number }) {
+/**
+ * Binary by design (§5.3): sign, colour and word come from the one comparison, so they can never
+ * disagree, and a small deficit is drawn exactly like a large one.
+ */
+function MarginHud({
+  generation,
+  load,
+  margin,
+  known,
+}: {
+  generation: number;
+  load: number;
+  margin: number;
+  /** False until the first power sample: a missing reading is not a zero-kW surplus. */
+  known: boolean;
+}) {
   const deficit = margin < 0;
-  const severe = margin < -5000;
+  const ink = !known ? 'text-ink-500' : deficit ? 'text-crit' : 'text-ok';
   return (
     <Panel>
-      <PanelHead title="Power margin" icon={<Power size={13} />} />
-      <div className={`telemetry-readout text-3xl font-bold leading-none ${severe ? 'text-crit' : deficit ? 'text-warn' : 'text-ok'}`}>
-        {signed(margin / 1000, 1)}
+      <PanelHead title="Power margin" hint={'\u0394P = generation \u2212 load'} icon={<Power size={13} />} />
+      <div className={`telemetry-readout text-3xl font-bold leading-none ${ink}`}>
+        {known ? signed(margin / 1000, 1) : '--'}
         <span className="ml-1 text-sm font-normal text-ink-400">kW</span>
       </div>
-      <div className="mt-1 text-2xs uppercase tracking-wider text-ink-500">
-        {deficit ? 'discharging / deficit' : 'surplus / charging'}
+      <div className={`mt-1 text-2xs uppercase tracking-wider ${ink}`}>
+        {!known ? 'no reading' : deficit ? 'deficit \u00b7 discharging' : 'surplus \u00b7 charging'}
       </div>
       <div className="mt-2 flex items-center gap-2">
         <div className="h-2 flex-1 overflow-hidden rounded bg-base-800">
           <div
-            className={`h-full ${deficit ? 'bg-warn' : 'bg-ok'}`}
+            className={`h-full ${deficit ? 'bg-crit' : 'bg-ok'}`}
             style={{ width: `${Math.min(100, Math.abs(margin / Math.max(1, generation)) * 100)}%` }}
           />
         </div>
@@ -253,44 +353,84 @@ function MarginHud({ generation, load, margin }: { generation: number; load: num
   );
 }
 
-function SocGauge({ soc, batteryW }: { soc: number | null; batteryW: number | null }) {
-  const value = soc ?? 0;
-  const tone = value < 15 ? 'crit' : value < 25 ? 'warn' : value < 50 ? 'warn' : 'ok';
-  const color = tone === 'crit' ? '#ef4444' : tone === 'warn' ? '#f59e0b' : '#10b981';
-  const segments = 20;
-  const filled = Math.round((value / 100) * segments);
+const SOC_SEGMENTS = 10;
+const SOC_FILL: Record<SocBand, string> = { ok: 'bg-ok', warn: 'bg-warn', crit: 'bg-crit soc-blink' };
+const SOC_TEXT: Record<SocBand, string> = { ok: 'text-ok', warn: 'text-warn', crit: 'text-crit soc-blink' };
+
+/**
+ * Ten segments (a quantity, not a percentage bar), coloured by `socBand`. The warn and reserve
+ * breaks are marked on the bar so a reserve change visibly moves the crimson boundary, and the
+ * projected time to reserve is shown in every band, not only the lowest.
+ */
+function SocGauge({
+  soc,
+  batteryW,
+  warnPct,
+  reservePct,
+  remaining,
+}: {
+  soc: number | null;
+  batteryW: number | null;
+  warnPct: number | null;
+  reservePct: number | null;
+  remaining: string;
+}) {
+  const band = socBand(soc, warnPct, reservePct);
+  const filled = soc === null ? 0 : Math.round((Math.max(0, Math.min(100, soc)) / 100) * SOC_SEGMENTS);
+  const fill = band ? SOC_FILL[band] : 'bg-inert';
+  const idle = batteryW === null || Math.abs(batteryW) < 1;
+  const mode = idle ? 'idle' : batteryW > 0 ? 'charging' : 'discharging';
+  const breaks = [
+    { at: reservePct, label: 'reserve', className: 'bg-crit' },
+    { at: warnPct, label: 'warn', className: 'bg-warn' },
+  ].filter((mark): mark is { at: number; label: string; className: string } => mark.at !== null);
 
   return (
     <Panel>
       <PanelHead
         title="Battery state of charge"
         icon={<BatteryCharging size={13} />}
-        right={value < 15 ? <Pill tone="crit">critical</Pill> : null}
+        right={band === 'crit' ? <Pill tone="crit">below reserve</Pill> : warnPct === null ? <Pill tone="inert">no limits</Pill> : null}
       />
-      <div className={`telemetry-readout text-3xl font-bold leading-none ${tone === 'crit' ? 'animate-pulse text-crit' : tone === 'warn' ? 'text-warn' : 'text-ok'}`}>
-        {pct(value, 1)}
+      <div
+        className={`telemetry-readout text-3xl font-bold leading-none ${band ? SOC_TEXT[band] : 'text-ink-500'}`}
+        title={band ? undefined : 'ARL alert limits unavailable, SOC band suppressed'}
+      >
+        {pct(soc, 1)}
       </div>
-      <div className="mt-2 flex h-6 gap-0.5">
-        {Array.from({ length: segments }, (_, index) => (
+      <div className="relative mt-2">
+        <div className="flex h-6 gap-0.5">
+          {Array.from({ length: SOC_SEGMENTS }, (_, index) => (
+            <span key={index} className={`flex-1 rounded-sm ${index < filled ? fill : 'bg-base-700 opacity-60'}`} />
+          ))}
+        </div>
+        {breaks.map((mark) => (
           <span
-            key={index}
-            className="flex-1 rounded-sm"
-            style={{
-              backgroundColor: index < filled ? color : '#1f293d',
-              opacity: index < filled ? 1 : 0.6,
-            }}
+            key={mark.label}
+            className={`absolute -bottom-1 -top-1 w-px ${mark.className}`}
+            style={{ left: `${Math.max(0, Math.min(100, mark.at))}%` }}
+            title={`${mark.label} ${mark.at}%`}
           />
         ))}
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-x-3">
-        <Datum label="flow" value={watts(batteryW === null ? null : Math.abs(batteryW))} tone={(batteryW ?? 0) >= 0 ? 'ok' : 'warn'} />
-        <Datum label="mode" value={(batteryW ?? 0) >= 0 ? 'charging' : 'discharging'} tone="neutral" />
+      <div className="mt-1 flex justify-between text-2xs text-ink-500">
+        <span>{reservePct !== null ? `reserve ${num(reservePct, 0)}%` : 'reserve --'}</span>
+        <span>{warnPct !== null ? `warn ${num(warnPct, 0)}%` : 'warn limit unavailable'}</span>
+      </div>
+      <div className="mt-1 grid grid-cols-2 gap-x-3">
+        {/* ∞ while charging or idle: the battery is not heading for the reserve, so there is no projection. */}
+        <Datum
+          label="to reserve"
+          value={remaining === '\u2014' && batteryW !== null && mode !== 'discharging' ? '\u221e' : remaining}
+          tone={band ?? 'inert'}
+        />
+        <Datum label="mode" value={mode} tone={idle ? 'inert' : 'neutral'} />
       </div>
     </Panel>
   );
 }
 
-function TrendGrid() {
+function TrendGrid({ warnPct }: { warnPct: number | null }) {
   const margin = useSeries({ service: 'opg', stream: 'power', field: 'total_generation_w' });
   const load = useSeries({ service: 'opg', stream: 'power', field: 'total_load_w' });
   const soc = useSeries({ service: 'opg', stream: 'power', entity: 'batteries', field: 'state_of_charge_pct' });
@@ -302,21 +442,27 @@ function TrendGrid() {
           <span>generation mean</span>
           <span className="telemetry-readout">{watts(live.latestField('opg', 'power', 'total_generation_w'))}</span>
         </div>
-        <LineChart points={margin.points} color="#facc15" height={60} digits={0} />
+        <LineChart points={margin.points} color="var(--opg)" height={60} digits={0} />
       </div>
       <div>
         <div className="mb-0.5 flex justify-between text-2xs uppercase tracking-wider text-ink-400">
           <span>load</span>
           <span className="telemetry-readout">{watts(live.latestField('opg', 'power', 'total_load_w'))}</span>
         </div>
-        <LineChart points={load.points} color="#38bdf8" height={60} digits={0} />
+        <LineChart points={load.points} color="var(--rta)" height={60} digits={0} />
       </div>
       <div>
         <div className="mb-0.5 flex justify-between text-2xs uppercase tracking-wider text-ink-400">
           <span>state of charge</span>
           <span className="telemetry-readout">{pct(live.latestField('opg', 'power', 'state_of_charge_pct'))}</span>
         </div>
-        <LineChart points={soc.points} color="#10b981" height={60} threshold={{ value: 25 }} digits={0} />
+        <LineChart
+          points={soc.points}
+          color="var(--nominal)"
+          height={60}
+          threshold={warnPct === null ? null : { value: warnPct }}
+          digits={0}
+        />
       </div>
     </div>
   );

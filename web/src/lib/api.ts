@@ -1,5 +1,6 @@
 import type {
   AlertCounts,
+  AlertLimit,
   AlertRecord,
   AlertTransition,
   CommandAckRow,
@@ -139,10 +140,8 @@ export const api = {
   },
   targets: () => request<Target[]>('/targets'),
   derived: () => request<DerivedResponse>('/derived'),
-  alertLimits: (service: string) =>
-    request<Record<string, { type: string; severity: string; warn: number | null; crit: number | null }>>(
-      `/alert-limits/${service}`,
-    ),
+  /** The wire shape is the ARL API's own: a flat list of `{ key, value, unit }`. */
+  alertLimits: (service: string) => request<AlertLimit[]>(`/alert-limits/${encodeURIComponent(service)}`),
   researchers: (code: string) => request<Researcher & { cached: boolean }>(`/researchers/${encodeURIComponent(code)}`),
   alerts: (params: { status?: string; service?: string; limit?: number } = {}) => {
     const query = new URLSearchParams();

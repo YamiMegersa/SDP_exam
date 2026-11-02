@@ -13,9 +13,10 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { api, type HealthResponse } from '../lib/api';
-import { clockTime, since } from '../lib/format';
+import { clockTime, dateTime, since } from '../lib/format';
 import { useLive, useResearcher, useTick } from '../lib/hooks';
 import { live } from '../lib/live';
+import { replayBadgeText, returnToLive, useConsoleMode } from '../lib/mode';
 import { Annunciator } from './Annunciator';
 import { Pill } from './ui';
 
@@ -30,6 +31,11 @@ const ROUTES: Array<{ id: Route; label: string; icon: typeof Radio; accent: stri
   { id: 'replay', label: 'Replay', icon: RotateCcw, accent: 'text-replay' },
 ];
 
+/**
+ * The four permanent zones of the design system (§4):
+ * Zone 1 header + replay state, Zone 2 annunciator, Zone 3 navigation + operator, Zone 4 workspace.
+ * `data-mode` on the root is the single switch for the replay chromatic shift (§7).
+ */
 export function Shell({
   route,
   onRoute,
@@ -39,9 +45,10 @@ export function Shell({
   onRoute: (route: Route) => void;
   children: React.ReactNode;
 }) {
+  const mode = useConsoleMode();
   return (
-    <div className="flex h-full min-h-0 flex-col bg-base-950">
-      <Header route={route} onRoute={onRoute} />
+    <div data-mode={mode.mode} className="flex h-full min-h-0 flex-col bg-base-950">
+      <Header />
       <Annunciator onOpenLog={() => onRoute('alerts')} />
       <Nav route={route} onRoute={onRoute} />
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
@@ -50,10 +57,10 @@ export function Shell({
   );
 }
 
-function Header({ route, onRoute }: { route: Route; onRoute: (route: Route) => void }) {
+function Header() {
   const version = useLive();
   const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [code, setCode] = useResearcher();
+  const mode = useConsoleMode();
   useTick(1000);
   void version;
 
@@ -81,10 +88,10 @@ function Header({ route, onRoute }: { route: Route; onRoute: (route: Route) => v
   const connected = connection === 'open';
   const brokerUp = health?.broker ?? live.brokerOnline;
   const simNow = live.simTime;
-  const replaying = route === 'replay';
+  const replaying = mode.mode === 'replay';
 
   return (
-    <header className="flex flex-none items-center gap-4 border-b border-base-700 bg-base-900 px-3 py-2">
+    <header className="arl-header flex flex-none items-center gap-4 px-3 py-2">
       <div className="flex items-center gap-2">
         <div className="flex h-8 w-8 items-center justify-center rounded border border-rta/40 bg-rta/10">
           <Radio size={16} className="text-rta" />
@@ -92,10 +99,8 @@ function Header({ route, onRoute }: { route: Route; onRoute: (route: Route) => v
         <div className="leading-tight">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold tracking-tight text-ink-100">ARL Operations</span>
-            {replaying ? (
-              <Pill tone="replay">historical</Pill>
-            ) : connected ? (
-              <span className="flex items-center gap-1 text-2xs font-bold uppercase tracking-widest text-ok">
+            {replaying ? null : connected ? (
+              <span className="flex items-center gap-1 text-2xs font-bold uppercase tracking-wide text-ok">
                 <span className="led led-nominal" /> live
               </span>
             ) : (
@@ -105,6 +110,24 @@ function Header({ route, onRoute }: { route: Route; onRoute: (route: Route) => v
           <div className="text-2xs text-ink-500">Carnarvon &middot; Karoo &middot; Northern Cape</div>
         </div>
       </div>
+
+      {replaying ? (
+        <div className="flex items-center gap-2">
+          <span
+            className="telemetry-readout rounded border border-replay bg-replay/25 px-2 py-1 text-2xs font-bold uppercase tracking-wide text-ink-100"
+            role="status"
+          >
+            {replayBadgeText(mode)}
+          </span>
+          <button
+            onClick={returnToLive}
+            className="rounded border border-ok/60 bg-ok/10 px-2 py-1 text-2xs font-bold uppercase tracking-wide text-ok hover:bg-ok/20"
+            title="Leave history and snap back to current telemetry"
+          >
+            Live
+          </button>
+        </div>
+      ) : null}
 
       <div className="hidden min-w-0 flex-1 items-center justify-end gap-4 lg:flex">
         <StatusItem
@@ -130,21 +153,19 @@ function Header({ route, onRoute }: { route: Route; onRoute: (route: Route) => v
       </div>
 
       <div className="ml-auto flex flex-none items-center gap-3">
-        <label className="flex items-center gap-1.5" title="Researcher code recorded against every control command">
-          <Terminal size={13} className="text-ink-500" />
-          <input
-            value={code}
-            onChange={(event) => setCode(event.target.value.toLowerCase())}
-            spellCheck={false}
-            className="telemetry-readout w-24 rounded border border-base-600 bg-base-950 px-1.5 py-1 text-2xs text-ink-200 focus:border-rta/60 focus:outline-none"
-            aria-label="Researcher code"
-          />
-        </label>
-        <div className="flex items-center gap-1.5 rounded border border-base-700 bg-base-950 px-2 py-1">
-          <Clock3 size={13} className="text-ink-500" />
+        <div
+          className={`flex items-center gap-1.5 rounded border px-2 py-1 ${
+            replaying ? 'border-replay/60 bg-replay-950/60' : 'border-base-700 bg-base-950'
+          }`}
+        >
+          <Clock3 size={13} className={replaying ? 'text-replay' : 'text-ink-500'} />
           <div className="leading-none">
-            <div className="telemetry-readout text-sm font-bold text-ink-100">{clockTime(simNow)}</div>
-            <div className="text-2xs text-ink-500">{health?.simulated ? 'simulator time' : 'wall clock'}</div>
+            <div className="telemetry-readout text-sm font-bold text-ink-100">
+              {replaying ? dateTime(mode.cursor) : clockTime(simNow)}
+            </div>
+            <div className="text-2xs text-ink-500">
+              {replaying ? 'replay cursor' : health?.simulated ? 'simulator time' : 'wall clock'}
+            </div>
           </div>
         </div>
       </div>
@@ -200,12 +221,37 @@ function Nav({ route, onRoute }: { route: Route; onRoute: (route: Route) => void
           </button>
         );
       })}
-      <div className="ml-auto flex items-center gap-1.5 py-1">
-        {(['rta', 'mhe', 'opg'] as const).map((code) => (
-          <ServiceLed key={code} code={code} />
-        ))}
+      <div className="ml-auto flex items-center gap-3 py-1">
+        <div className="flex items-center gap-1.5">
+          {(['rta', 'mhe', 'opg'] as const).map((code) => (
+            <ServiceLed key={code} code={code} />
+          ))}
+        </div>
+        <OperatorContext />
       </div>
     </nav>
+  );
+}
+
+/** Zone 3 researcher context: the code recorded against every command and alert transition. */
+function OperatorContext() {
+  const [code, setCode] = useResearcher();
+  return (
+    <label
+      className="flex items-center gap-1.5 border-l border-base-700 pl-3"
+      title="Researcher code recorded against every control command and alert transition"
+    >
+      <Terminal size={13} className="text-ink-500" />
+      <span className="text-xs2 font-medium uppercase tracking-wider text-ink-300">Operator</span>
+      <input
+        value={code}
+        onChange={(event) => setCode(event.target.value.toLowerCase())}
+        spellCheck={false}
+        className="telemetry-readout w-24 rounded border border-base-600 bg-base-950 px-1.5 py-1 text-2xs text-ink-200 focus:border-rta/60 focus:outline-none"
+        aria-label="Researcher code"
+      />
+      <span className="text-2xs font-bold uppercase tracking-wide text-ink-500">(ARL)</span>
+    </label>
   );
 }
 
@@ -222,7 +268,7 @@ function ServiceLed({ code }: { code: string }) {
     >
       <span
         className={`led ${
-          state === 'ok' ? 'led-nominal' : state === 'warn' ? 'led-caution' : state === 'crit' ? 'led-alarm' : 'led-inert'
+          state === 'ok' ? 'led-nominal' : state === 'warn' ? 'led-caution' : state === 'crit' ? 'led-alert' : 'led-inert'
         }`}
       />
       <span className="text-2xs font-bold uppercase tracking-wider text-ink-300">{code}</span>

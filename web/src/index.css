@@ -13,20 +13,50 @@
  */
 
 @layer base {
+  /*
+   * The only place (with tailwind.config.js) a hex literal may appear. Components and pages read
+   * these through `var(--...)` in SVG/inline styles and through Tailwind classes everywhere else.
+   */
   :root {
     color-scheme: dark;
-    --panel: #111827;
-    --panel-edge: #1f293d;
+    /* Surfaces (design system §2 A) */
     --void: #0a0d14;
+    --panel: #111827;
+    --panel-deep: #151d2b;
+    --elev: #1a2234;
+    --panel-edge: #1f293d;
+    --hover: #283548;
+    --track: #26303f;
+    /* Status (§2 B). The guide uses two names for two of them; both exist. */
     --nominal: #10b981;
+    --ok: var(--nominal);
     --caution: #f59e0b;
     --alarm: #ef4444;
+    --crit-glow: 0 0 12px rgba(239, 68, 68, 0.5);
     --in-hand: #6366f1;
+    --ack: var(--in-hand);
     --inert: #475569;
+    /* Service accents (§2 C) */
     --rta: #38bdf8;
     --mhe: #fb923c;
     --opg: #facc15;
     --replay: #a855f7;
+    --replay-deep: #2e1065;
+    --replay-mid: #581c87;
+    /* Ink scale, for SVG text and strokes */
+    --ink-100: #f1f5f9;
+    --ink-200: #e2e8f0;
+    --ink-300: #94a3b8;
+    --ink-400: #64748b;
+    --ink-500: #475569;
+    /* Zone 1 background: deep slate live, cosmic violet in replay (§7.1). */
+    --header-bg: var(--void);
+    --header-edge: var(--panel-edge);
+  }
+
+  [data-mode='replay'] {
+    --header-bg: linear-gradient(90deg, var(--replay-deep), var(--replay-mid));
+    --header-edge: var(--replay);
   }
 
   html,
@@ -47,14 +77,14 @@
     height: 9px;
   }
   ::-webkit-scrollbar-track {
-    background: #0b0e14;
+    background: var(--void);
   }
   ::-webkit-scrollbar-thumb {
-    background: #26303f;
+    background: var(--track);
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #33415a;
+    background: var(--hover);
   }
 
   ::selection {
@@ -75,7 +105,7 @@
   input[type='range']::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 999px;
-    background: #26303f;
+    background: var(--track);
   }
   input[type='range']::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -84,18 +114,26 @@
     width: 14px;
     height: 14px;
     border-radius: 999px;
-    background: #38bdf8;
-    border: 2px solid #0a0d14;
+    background: var(--rta);
+    border: 2px solid var(--void);
     box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
   }
 }
 
 @layer components {
+  /* Design system §8, verbatim under the guide's names. */
   .arl-panel {
     background-color: var(--panel);
     border: 1px solid var(--panel-edge);
     border-radius: 6px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Zone 1. The background is a token so replay cannot forget to repaint it. */
+  .arl-header {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--header-edge);
+    transition: background 240ms ease;
   }
 
   .telemetry-readout {
@@ -124,9 +162,24 @@
     box-shadow: 0 0 8px var(--caution);
     animation: led-pulse 1.6s infinite ease-in-out;
   }
+  /* `.led-alarm` is the pre-guide name, kept as an alias so stale markup still lights. */
+  .led-alert,
   .led-alarm {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
     background-color: var(--alarm);
     box-shadow: 0 0 10px var(--alarm);
+    animation: led-pulse 1.2s infinite ease-in-out;
+  }
+
+  /* Stowed dish: the one tile state the guide names as pulsing (§5.1). */
+  .stow-pulse {
+    animation: led-pulse 1.6s infinite ease-in-out;
+  }
+
+  /* SOC below the reserve: the guide's blinking crimson (§5.3). */
+  .soc-blink {
     animation: led-pulse 1.2s infinite ease-in-out;
   }
   .led-inert {
@@ -156,7 +209,15 @@
 
   .scroll-thin {
     scrollbar-width: thin;
-    scrollbar-color: #26303f transparent;
+    scrollbar-color: var(--track) transparent;
+  }
+
+  /* Select chevron, in the secondary-metric ink (#64748b). */
+  .arl-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 10px;
   }
 }
 
@@ -218,11 +279,31 @@
   opacity: 0.45;
 }
 
+/*
+ * Crew pulse line: the trace holds two beats and scrolls by one per cycle. The cycle length is set
+ * inline from the sampled heart rate (60 / bpm seconds), so a 48 bpm and a 140 bpm card differ.
+ */
+@keyframes pulse-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.pulse-trace {
+  /* fill-box: -50% is half the two-beat trace, i.e. exactly one beat, not half the viewBox. */
+  transform-box: fill-box;
+  animation: pulse-scroll 1s linear infinite;
+}
+
 /* Reduced motion: keep the information, drop the blinking. */
 @media (prefers-reduced-motion: reduce) {
   .annunciator-flash,
+  .led-alert,
   .led-alarm,
-  .led-caution {
+  .led-caution,
+  .stow-pulse,
+  .soc-blink,
+  .pulse-trace {
     animation: none !important;
   }
 }

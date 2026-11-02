@@ -15,6 +15,7 @@ import type { Sample } from '../lib/types';
 
 interface ChartProps {
   points: Sample[];
+  /** A CSS colour; pass a token (`var(--rta)`), never a hex literal. */
   color: string;
   height?: number;
   /** Override the y-range; otherwise it is derived from the data. */
@@ -103,18 +104,18 @@ export function LineChart({
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full" role="img" aria-label="trend">
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+            <stop offset="0%" style={{ stopColor: color }} stopOpacity="0.28" />
+            <stop offset="100%" style={{ stopColor: color }} stopOpacity="0.02" />
           </linearGradient>
         </defs>
-        <line x1="0" y1="99.5" x2="100" y2="99.5" stroke="#1f293d" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        <line x1="0" y1="99.5" x2="100" y2="99.5" style={{ stroke: 'var(--panel-edge)' }} strokeWidth="1" vectorEffect="non-scaling-stroke" />
         {geometry.thresholdY !== null ? (
           <line
             x1="0"
             y1={geometry.thresholdY}
             x2="100"
             y2={geometry.thresholdY}
-            stroke="#f59e0b"
+            style={{ stroke: 'var(--caution)' }}
             strokeWidth="1"
             strokeDasharray="3 3"
             vectorEffect="non-scaling-stroke"
@@ -125,7 +126,7 @@ export function LineChart({
         <path
           d={geometry.path}
           fill="none"
-          stroke={color}
+          style={{ stroke: color }}
           strokeWidth="1.5"
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
@@ -175,7 +176,7 @@ export function Sparkline({
   if (!geometry) return <div className="h-full w-full rounded-sm bg-base-800/50" />;
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full" aria-hidden>
-      <path d={geometry} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path d={geometry} fill="none" style={{ stroke: color }} strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -202,7 +203,7 @@ export function MicroMeter({
       {label ? <span className="w-10 flex-none text-2xs uppercase tracking-wide text-ink-500">{label}</span> : null}
       <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-base-800">
         <div
-          className={`h-full rounded-sm transition-[width] duration-300 ${hot ? 'bg-warn animate-pulse' : 'bg-rta'}`}
+          className={`h-full rounded-sm transition-[width] duration-300 ${hot ? 'bg-warn motion-safe:animate-pulse' : 'bg-rta'}`}
           style={{ width: `${ratio * 100}%` }}
         />
       </div>

@@ -16,6 +16,9 @@ import type { AlertRecord, AlertTransition } from '../lib/types';
  * (cleared), and what has been dealt with (resolved). The transition list is the
  * audit trail - every raise, escalation, clear, acknowledgement and resolution,
  * with the researcher code that performed it.
+ *
+ * Under the resolved filter the live list gives way to the guide's seven-column audit table (§6),
+ * whose two attribution cells carry the researcher code and its timestamp together.
  */
 
 type FilterId = 'active' | 'cleared' | 'unacknowledged' | 'resolved' | 'all';
@@ -24,7 +27,7 @@ const FILTERS: Array<{ id: FilterId; label: string; status: string }> = [
   { id: 'active', label: 'In alarm', status: 'raised' },
   { id: 'unacknowledged', label: 'Unacknowledged', status: 'unacknowledged' },
   { id: 'cleared', label: 'Cleared', status: 'cleared' },
-  { id: 'resolved', label: 'Resolved', status: 'resolved' },
+  { id: 'resolved', label: 'Resolved \u00b7 audit', status: 'resolved' },
   { id: 'all', label: 'All', status: '' },
 ];
 
@@ -142,6 +145,8 @@ export function AlertsPage() {
         <div className="min-h-0 flex-1 overflow-y-auto scroll-thin">
           {rows.length === 0 ? (
             <Empty>nothing matches this filter</Empty>
+          ) : filter === 'resolved' ? (
+            <AuditTable alerts={displayed} selected={selected?.alert_id ?? null} onSelect={setSelected} />
           ) : (
             <table className="w-full border-collapse text-xs">
               <thead className="sticky top-0 bg-base-900">
@@ -289,6 +294,71 @@ export function AlertsPage() {
         onDone={onDone}
       />
     </div>
+  );
+}
+
+/** `CODE (timestamp)` in one cell: who acted and when are one piece of evidence, not two. */
+function Attribution({ by, ts }: { by: string | null; ts: number | null }) {
+  if (!by && ts === null) return <span className="text-ink-500">{'\u2014'}</span>;
+  return (
+    <span className="telemetry-readout">
+      <span className="text-inhand">{by ?? '\u2014'}</span>
+      <span className="text-ink-500"> ({ts !== null ? dateTime(ts) : '\u2014'})</span>
+    </span>
+  );
+}
+
+const AUDIT_COLUMNS = ['Alert ID', 'Service', 'Cause', 'Raised At', 'Ack By (Timestamp)', 'Resolved By (Timestamp)', 'Notes'];
+
+function AuditTable({
+  alerts,
+  selected,
+  onSelect,
+}: {
+  alerts: AlertRecord[];
+  selected: string | null;
+  onSelect: (alert: AlertRecord) => void;
+}) {
+  return (
+    <table className="w-full border-collapse text-xs" aria-label="Alert audit table">
+      <thead className="sticky top-0 bg-base-900">
+        <tr className="text-left text-2xs uppercase tracking-wider text-ink-500">
+          {AUDIT_COLUMNS.map((column) => (
+            <th key={column} className="pb-1 pr-2 font-medium">
+              {column}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {alerts.map((alert) => {
+          const notes = [alert.ack_note, alert.resolution].filter((note): note is string => Boolean(note));
+          return (
+            <tr
+              key={alert.alert_id}
+              onClick={() => onSelect(alert)}
+              className={`cursor-pointer border-t border-base-700/60 align-top hover:bg-base-800/50 ${
+                selected === alert.alert_id ? 'bg-base-800/70' : ''
+              }`}
+            >
+              <td className="telemetry-readout py-1 pr-2 text-2xs text-ink-300">{alert.alert_id}</td>
+              <td className="py-1 pr-2 text-2xs uppercase tracking-wide text-ink-300">{alert.service}</td>
+              <td className="max-w-[200px] py-1 pr-2 text-ink-200">{alert.cause ?? alert.message ?? alert.type}</td>
+              <td className="telemetry-readout whitespace-nowrap py-1 pr-2 text-2xs text-ink-400">{dateTime(alert.raised_ts)}</td>
+              <td className="whitespace-nowrap py-1 pr-2 text-2xs">
+                <Attribution by={alert.ack_by} ts={alert.ack_ts} />
+              </td>
+              <td className="whitespace-nowrap py-1 pr-2 text-2xs">
+                <Attribution by={alert.resolved_by} ts={alert.resolved_ts} />
+              </td>
+              <td className="max-w-[240px] py-1 text-2xs text-ink-300">
+                {notes.length > 0 ? notes.join(' \u00b7 ') : <span className="text-ink-500">{'\u2014'}</span>}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 

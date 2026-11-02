@@ -38,8 +38,8 @@ The exam requires three of the five ARL services. **Selected:**
 | Platform | 10% | Replay system | — | Implemented, verified live |
 | Platform | 5% | Architecture | — | Implemented (shared shell + service plugins) |
 | Platform | 5% | Security | — | Implemented, verified (403/503 gates) |
-| Platform | 2.5% | UI / UX | — | Implemented (three workspaces, alerts, replay) |
-| Platform | 2.5% | Testing | — | 103 tests, 8 files, passing |
+| Platform | 2.5% | UI / UX | — | Implemented, conformant to `Front-end components/DESIGN_SYSTEM.md` (D16) |
+| Platform | 2.5% | Testing | — | 126 tests, 10 files, passing |
 
 Implementation order: **RTA → OPG → MHE**. The shared shell (ingestion, persistence, alerts, replay,
 websocket push) is built first and is generic; each service then plugs in.
@@ -376,11 +376,11 @@ mutating actions are attributed to, and gated by, the code's existence in the AR
 
 | Surface | Behaviour |
 | --- | --- |
-| RTA workspace | 10×10 dish matrix (status/az-el/temperature), Canvas scan raster reconstructed client-side from 1 Hz scan packets, target/scan/stop controls |
-| MHE workspace | room blueprint with O₂/CO₂/temperature/occupancy, crew vitals, derived headcount/stress/CO₂ panel, scrubber and airlock controls |
-| OPG workspace | solar → bus → load energy flow, SoC gauge, diesel runtime and fuel, source-priority and load-shedding controls, autonomy and margin detail |
-| Alerts | annunciator with severity ordering, acknowledge (code) and resolve (code + note), per-alert audit trail, transition history |
-| Replay | window selection over captured history, play/pause/rewind/fast-forward, 1×/2×/5×/10×, scrub bar, alert correlation |
+| RTA workspace | 10×10 matrix of 24 px dish tiles (status/az-el/temperature; stowed dishes pulse; hover tooltip), pointing HUD, Canvas scan raster reconstructed client-side from 1 Hz scan packets, target/scan/stop controls. Temperature bands come from `dish_temperature.warn_k`/`crit_k` |
+| MHE workspace | room blueprint with O₂/CO₂/temperature, an occupancy badge per room and an airlock state pill, crew vitals with a heart-rate pulse trace, derived headcount/stress/CO₂ panel, scrubber and airlock controls. Bands come from `air.*` and `crew.*` limits |
+| OPG workspace | solar + diesel → inverter / bus → battery + lab load energy flow with kW on every edge (diesel dimmed and dashed while dormant), a two-state power-margin readout (surplus · charging / deficit · discharging), a 10-segment SoC gauge banded by `battery.warn_pct` and the bank's reserve, diesel runtime and fuel against `fuel.min_pct`, source-priority and load-shedding controls |
+| Alerts | annunciator with severity ordering, acknowledge (code) and resolve (code + note), per-alert audit trail, transition history; the **Resolved · audit** filter is the guide's seven-column table (Alert ID, Service, Cause, Raised At, Ack By (Timestamp), Resolved By (Timestamp), Notes) |
+| Replay | window selection over captured history, the guide's rate pills `Rewind · 1x · 2x · 5x · 10x · LIVE` (LIVE exits), a scrub bar with severity-coloured raise ticks and green resolve ticks, alert correlation. While a session runs the whole header turns replay violet and carries `HISTORICAL REPLAY — <rate>` |
 
 ### REST surface
 
@@ -468,7 +468,7 @@ rebuilt from the stored scan rows — not from the broker or the API backlog.
 ## Testing
 
 ```bash
-npm test            # 103 tests across 8 files (vitest)
+npm test            # 126 tests across 10 files (vitest)
 npm run test:watch  # no root script — the watcher is `npm --workspace server run test:watch`
 npm run --workspace server test:typecheck   # typecheck the tests too
 ```
@@ -486,6 +486,7 @@ tests never touch `data/arl.sqlite`.
 | `test/ingest.test.ts` | scenario-driven: topology after samples (orphan drain), wildcard routing, unconfigured services, sequence-gap alerts, state de-duplication, scalar retained state, alert events, offline flips |
 | `test/api.test.ts` | supertest against the real Express app: derived endpoint, 400/403/503/409/200 on alert mutations with no audit write on refusal, replay lifecycle, health/services/alerts reads, JSON 404 |
 | `test/config.test.ts` | address normalisation: the hand-out's `http://` broker address, one scheme and one port in the API base URL, empty credentials meaning an anonymous broker, and the fail-fast on a missing or non-numeric variable |
+| `test/design.test.ts` | design-system conformance (`Planning Docs/16` §4.7) as text checks over `web/src`, needing no browser: no hex colour in components or pages, the guide tokens defined once in `index.css`, the 11 px `xs2` step, no threshold literal in a page, the replay badge and the four rate pills, the seven audit columns in order, and every animation in the reduced-motion list |
 
 These tests have already earned their keep: `?service=` on `/api/derived` was validated but never
 applied until the API test failed, the replay interleave is pinned so the empty-mosaic regression
@@ -540,12 +541,52 @@ The lab's security is weak and out of scope; the requirement is not to weaken it
 | D13 | 2026-11-02 | Platform alerts are reconciled at startup, not only on a transition: `brokerConnected` starts `false` and `AlertEngine.start()` sweeps immediately | A CRITICAL `broker_disconnected` raised in one run survived the restart that fixed it and stayed red for the rest of the session, because the engine only clears on an edge it never saw. Now the first `connect` closes the old row and the first sweep clears stale silence/gap alerts; the close is an audit transition, not a deletion | Trusting the stored row (a lying red banner); deleting platform alerts on boot (destroys the trail of when the platform lost the broker) |
 | D14 | 2026-11-02 | The MHE habitat plan is height-capped and never allowed to shrink (`max-h-[44vh]`, `max-w-[620px]`, `shrink-0` on its panel) | Sizing the SVG by width alone made it grow to the column width and paint over the compartment detail and crew strip below; letting the flex box squeeze it made the drawing (and its hit areas) unreadable. A fixed-aspect drawing scrolls the column instead | Absolute positioning over the layout (still overlaps); rasterising the plan to an image (loses live hazard colouring) |
 | D15 | 2026-11-02 | The broker address is reduced to a bare host before mqtt.js sees it (`brokerHost` in `config.ts`), so the hand-out's `http://wmc.ms.wits.ac.za` works verbatim | The brief supplies the broker as a URL with an `http` scheme while the transport is `mqtt://`; concatenating both produced `mqtt://http://host:1883`, whose hostname is `http` and which never connects. Stripping the scheme at the edge keeps every other module thinking in hosts | Requiring the hand-out value to be rewritten by hand (a silent trap, and not what the brief says); teaching `Ingest` to parse URLs itself (two places deciding the same thing) |
+| D16 | 2026-11-02 | The UI follows `Front-end components/DESIGN_SYSTEM.md` through one token layer (`index.css :root` + `tailwind.config.js`). Components read colours only as `var(--token)` or token classes, and every caution/alarm band is drawn from `GET /api/alert-limits/<service>` via `useLimits` (a missing limit renders the value inert, with no band). The guide's example figures (CO₂ 1,200 ppm, SoC 15/25/50 %, 75 °C) are illustrations, not limits | The guide's colour rule is authoritative but its numbers disagree with the limits the services enforce, which is how defect D-10 was born. One token layer makes the replay chromatic shift a single `data-mode` override, and `design.test.ts` keeps hex and threshold literals out of the pages | Copying the guide's figures into the pages (contradicts the annunciator); per-page colour constants (the hex drift the audit removed); conditional replay classes on every page (a new page would forget them) |
 
 ---
 
 ## Progress Log
 
 Newest first. Each entry: what changed, and why if non-obvious.
+
+- **2026-11-02 — Front end brought into line with the design system (D16, `Planning Docs/16`).** Done in
+  layers, each one verified by typecheck, build and test before the next:
+  - *Token layer.* The guide's palette is defined once as CSS variables (`--void`, `--panel`,
+    `--nominal`, `--caution`, `--alarm`, `--in-hand`, `--inert`, the three service accents, `--replay`),
+    the 11 px `xs2` step was added to Tailwind, and the alert LED blink is `.led-alert`. Every hex
+    literal left in components and pages was replaced by a token, and SVG colours go through `style`
+    so they resolve the variables.
+  - *Limits, not literals.* `useLimits(service)` reads `/api/alert-limits/<service>`, and the RTA
+    (temperature 333/343 K, availability 80), MHE (CO₂ 1,500/2,500 ppm, O₂, heart rate, SpO₂, body
+    temperature) and OPG (SoC warn 30 % and the bank's reserve, fuel 25 %) bands now use it. The
+    Overview's CO₂ and margin tones follow the same rule. This closes defect D-10 in the pages.
+  - *Shell.* The researcher code moved into the navigation rail (Zone 3). In replay the header
+    repaints violet and shows `HISTORICAL REPLAY — <rate>`/`PAUSED` with the replay cursor in place of
+    the live clock, driven by one `data-mode="replay"` attribute set from `lib/mode.ts`.
+  - *Replay.* The transport is the guide's selector, `Rewind · 1x · 2x · 5x · 10x · LIVE`; LIVE ends
+    the session. The 32× rate is gone. Scrub-bar ticks are coloured by severity on raise and green on
+    resolve.
+  - *RTA.* 24 px dish tiles, a pulsing outline on stowed dishes, a hover tooltip per dish and a
+    pointing HUD.
+  - *MHE.* An airlock state pill, an occupancy badge on every room and a heart-rate pulse trace on each
+    crew card.
+  - *OPG.* The energy flow now shows solar and diesel → inverter / bus → battery and lab load, with kW
+    on every edge. The battery edge reverses when the bank discharges, and the diesel is dimmed and
+    dashed while dormant. The margin readout is binary (surplus · charging / deficit · discharging),
+    and with no reading it says so rather than show `+0.0`. The SoC gauge has 10 segments with
+    break markers at the reserve and the warn limit; below the reserve it blinks crimson, and
+    "to reserve" reads ∞ while the bank is not discharging.
+  - *Alerts.* The `Resolved · audit` filter renders the seven-column audit table, each attribution as
+    code plus timestamp.
+  - *Motion.* Every animation (`annunciator-flash`, `led-alert`, `stow-pulse`, `soc-blink`,
+    `pulse-trace`) stops under `prefers-reduced-motion`.
+
+  `test/design.test.ts` (7 tests) pins the conformance rules as source checks; the suite is 126 tests
+  across 10 files. Checked in headless Firefox against the running platform: 10 SoC segments, kW labels
+  and a dormant diesel on OPG, 9 occupancy badges and 5 pulse traces on MHE, 100 dish tiles on RTA. The
+  audit table could only be checked empty, because the database holds no resolved alert and none was
+  resolved just to fill it. The images in [Screenshots](#screenshots) predate this change and have not
+  been re-captured.
 
 - **2026-11-02 — Pointed the platform at the exam lab (`wmc.ms.wits.ac.za`).** The hand-out supplies the
   broker as `http://wmc.ms.wits.ac.za`, which the old code turned into `mqtt://http://…`: hostname
@@ -698,9 +739,10 @@ marked as a fix is not a claim that the fix exists — the `Status today` column
 is real. Second, writing it changed the code: comparing the specifications against the existing pages
 produced **D-9** (survey and vitals payloads lose their crew attribution — `LiveEvent` drops the
 envelope `entity`) and **D-10** (the MHE and OPG pages hard-code thresholds that contradict the limits
-the ARL API serves). Both are recorded in `00` §6 with the file that fixes them.
+the ARL API serves). Both are recorded in `00` §6 with the file that fixes them. D-10 is closed in the
+pages by D16: every band is now read from the ARL alert limits.
 
-Register naming, since three registers share letters: `D1`–`D15` are **decisions** (Decision Register),
+Register naming, since three registers share letters: `D1`–`D16` are **decisions** (Decision Register),
 `D-1`–`D-10` are **defects** (`00` §6), and `R1`–`R12` are **risks** (Known Issues).
 
 ---

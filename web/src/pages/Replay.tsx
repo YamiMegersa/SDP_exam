@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ChevronsLeft,
   Clock3,
   FastForward,
   History,
   Layers,
   Pause,
   Play,
-  RotateCcw,
+  Radio,
   Scissors,
   Square,
   Timer,
@@ -19,6 +20,7 @@ import { clockTime, duration, hz, num, pct, toNumber, watts } from '../lib/forma
 import { useTick } from '../lib/hooks';
 import { ScanRaster } from '../lib/imaging';
 import { live } from '../lib/live';
+import { replayBadgeText, setConsoleMode, setLiveExit } from '../lib/mode';
 import type { AlertRecord, ReplayFrame, ReplaySnapshot } from '../lib/types';
 
 /**
@@ -35,6 +37,7 @@ import type { AlertRecord, ReplayFrame, ReplaySnapshot } from '../lib/types';
  * what happened between the cursor and now.
  */
 
+/** The design system's rate pills (§7): exactly these four, between `<< Rewind` and `LIVE`. */
 const SPEEDS = [1, 2, 5, 10];
 /**
  * How much simulated time to replay by default.
@@ -401,6 +404,31 @@ export function ReplayPage() {
     await api.deleteReplay(id).catch(() => undefined);
   };
 
+  // Zone 1 reads the console mode: the violet top bar and the HISTORICAL REPLAY badge follow the
+  // session, and its LIVE button calls the same exit as the pill below.
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  useEffect(() => {
+    setLiveExit(() => void stopRef.current());
+    return () => {
+      setLiveExit(null);
+      setConsoleMode(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!session || session.status === 'stopped') {
+      setConsoleMode(null);
+      return;
+    }
+    setConsoleMode({
+      mode: 'replay',
+      paused: session.status !== 'playing',
+      speed: session.speed,
+      cursor: session.cursor,
+    });
+  }, [session?.id, session?.status, session?.speed, session?.cursor]);
+
   // ------------------------------------------------------------------- render
 
   const raster = rasterRef.current;
@@ -424,10 +452,14 @@ export function ReplayPage() {
     co2Count += 1;
   }
 
-  const tickAlert = (alert: AlertRecord) => {
-    if (!from || !to || to <= from) return null;
-    if (alert.raised_ts < from || alert.raised_ts > to) return null;
-    return ((alert.raised_ts - from) / (to - from)) * 100;
+  // Ticks for both ends of an alert's life inside the window: raise coloured by severity, resolve
+  // in nominal green (design system §7.2).
+  const windowFrom = session?.from ?? from;
+  const windowTo = session?.to ?? to;
+  const tickAt = (ts: number | null) => {
+    if (ts === null || !windowFrom || !windowTo || windowTo <= windowFrom) return null;
+    if (ts < windowFrom || ts > windowTo) return null;
+    return ((ts - windowFrom) / (windowTo - windowFrom)) * 100;
   };
 
   return (
@@ -553,28 +585,9 @@ export function ReplayPage() {
                 ) : null}
               </div>
 
-              <div>
-                <SectionLabel>playback rate</SectionLabel>
-                <div className="flex gap-1">
-                  {SPEEDS.map((entry) => (
-                    <button
-                      key={entry}
-                      onClick={() => void changeSpeed(entry)}
-                      className={`flex-1 rounded border px-2 py-1 text-2xs font-bold uppercase tracking-wide ${
-                        speed === entry
-                          ? 'border-replay/60 bg-replay/15 text-replay'
-                          : 'border-base-700 bg-base-800 text-ink-400'
-                      }`}
-                    >
-                      {entry}x
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="flex gap-1.5">
                 <Button tone="primary" onClick={() => void start()} busy={busy === 'start'} disabled={!from || !to || services.length === 0 || session !== null}>
-                  <Play size={12} /> start replay
+                  <Play size={12} /> start replay at {speed}x
                 </Button>
                 {session ? (
                   <Button tone="ghost" onClick={() => void stop()}>
@@ -593,40 +606,99 @@ export function ReplayPage() {
         </Panel>
 
         <Panel>
-          <PanelHead title="Transport" icon={<Clock3 size={13} />} right={session ? <Pill tone={running ? 'ok' : 'neutral'}>{session.status}</Pill> : <Pill tone="inert">idle</Pill>} />
-          <div className="telemetry-readout text-lg font-bold text-replay">{clockTime(cursor)}</div>
+          <PanelHead
+            title="Transport"
+            icon={<Clock3 size={13} />}
+            right={
+              session ? (
+                <Pill tone="replay">
+                  {replayBadgeText({ paused: session.status !== 'playing', speed: session.speed })}
+                </Pill>
+              ) : (
+                <Pill tone="inert">idle</Pill>
+              )
+            }
+          />
+          <div className="telemetry-readout text-xl font-bold text-replay">{clockTime(cursor)}</div>
           <div className="text-2xs uppercase tracking-wider text-ink-500">replay cursor &middot; simulator time</div>
 
-          <div className="relative mt-2 h-2 overflow-hidden rounded bg-base-800">
+          <div className="relative mt-2 h-3 overflow-hidden rounded bg-base-800">
             <div className="absolute inset-y-0 left-0 bg-replay/50" style={{ width: `${(session?.progress ?? 0) * 100}%` }} />
-            {alertTicks.map((alert) => {
-              const left = tickAlert(alert);
-              if (left === null) return null;
-              return (
-                <span
-                  key={alert.alert_id}
-                  title={`${alert.severity} \u00b7 ${alert.message ?? alert.type}`}
-                  className={`absolute inset-y-0 w-0.5 ${alert.severity === 'critical' ? 'bg-crit' : 'bg-warn'}`}
-                  style={{ left: `${left}%` }}
-                />
-              );
+            {alertTicks.flatMap((alert) => {
+              const raised = tickAt(alert.raised_ts);
+              const resolved = tickAt(alert.resolved_ts);
+              const label = alert.message ?? alert.type;
+              const ticks = [];
+              if (raised !== null) {
+                ticks.push(
+                  <span
+                    key={`${alert.alert_id}-raised`}
+                    title={`raised · ${alert.severity} · ${alert.alert_id} · ${label}`}
+                    className={`absolute inset-y-0 w-0.5 ${alert.severity === 'critical' ? 'bg-crit' : 'bg-warn'}`}
+                    style={{ left: `${raised}%` }}
+                  />,
+                );
+              }
+              if (resolved !== null) {
+                ticks.push(
+                  <span
+                    key={`${alert.alert_id}-resolved`}
+                    title={`resolved · ${alert.alert_id} · ${alert.resolved_by ?? ''} · ${label}`}
+                    className="absolute inset-y-0 w-0.5 bg-ok"
+                    style={{ left: `${resolved}%` }}
+                  />,
+                );
+              }
+              return ticks;
             })}
+          </div>
+          <div className="mt-1 flex items-center gap-3 text-2xs text-ink-500">
+            <span className="flex items-center gap-1"><span className="h-2 w-0.5 bg-crit" /> critical raised</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-0.5 bg-warn" /> warning raised</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-0.5 bg-ok" /> resolved</span>
+          </div>
+
+          {/* The guide's exact selector: [<< Rewind] [1x] [2x] [5x] [10x] [LIVE]. */}
+          <div className="mt-2 flex gap-1" role="group" aria-label="Replay rate">
+            <button
+              disabled={!session || busy === 'seek'}
+              onClick={() => {
+                if (session) void seekTo(session.from);
+              }}
+              title="rewind to the start of the window"
+              className="flex items-center gap-0.5 rounded border border-base-700 bg-base-800 px-2 py-1 text-2xs font-bold uppercase tracking-wide text-ink-300 hover:bg-base-700 disabled:opacity-40"
+            >
+              <ChevronsLeft size={12} /> Rewind
+            </button>
+            {SPEEDS.map((entry) => (
+              <button
+                key={entry}
+                onClick={() => void changeSpeed(entry)}
+                aria-pressed={speed === entry}
+                className={`flex-1 rounded border px-2 py-1 text-2xs font-bold uppercase tracking-wide ${
+                  speed === entry
+                    ? 'border-replay/60 bg-replay/15 text-replay'
+                    : 'border-base-700 bg-base-800 text-ink-400 hover:bg-base-700'
+                }`}
+              >
+                {entry}x
+              </button>
+            ))}
+            {/* LIVE is not a rate: it is the exit, so it is drawn in nominal green, apart from the four. */}
+            <button
+              onClick={() => void stop()}
+              disabled={!session}
+              title="leave history and snap back to current telemetry"
+              className="ml-1 flex items-center gap-1 rounded border border-ok/60 bg-ok/10 px-2 py-1 text-2xs font-bold uppercase tracking-wide text-ok hover:bg-ok/20 disabled:opacity-40"
+            >
+              <Radio size={11} /> Live
+            </button>
           </div>
 
           <div className="mt-2 flex items-center gap-1.5">
             <Button tone={running ? 'default' : 'primary'} onClick={() => void toggle()} busy={busy === 'transport'} disabled={!session}>
               {running ? <Pause size={12} /> : <Play size={12} />}
               {running ? 'pause' : 'play'}
-            </Button>
-            <Button
-              tone="ghost"
-              disabled={!session}
-              onClick={() => {
-                if (session) void seekTo(session.from);
-              }}
-              title="rewind to the start of the window"
-            >
-              <RotateCcw size={12} /> rewind
             </Button>
             <span className="telemetry-readout ml-auto text-2xs text-ink-400">
               {session ? `${session.emitted.toLocaleString('en-US')} of ${session.rows.toLocaleString('en-US')} rows` : 'no session'}
@@ -670,7 +742,18 @@ export function ReplayPage() {
             }
           />
           <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_170px]">
-            <ScanCanvas raster={raster} target={targetRef.current} bandHz={raster.meta.bandHz} />
+            <ScanCanvas
+              raster={raster}
+              target={targetRef.current}
+              bandHz={raster.meta.bandHz}
+              status={
+                statesRef.current.get('rta|global|wind_stow') === true
+                  ? 'stowed'
+                  : statesRef.current.get('rta|main|scan_state') === 'running'
+                    ? 'scanning'
+                    : 'idle'
+              }
+            />
             <div className="grid grid-cols-2 gap-x-3 gap-y-2 lg:grid-cols-1">
               <Readout label="scan id" value={raster.meta.scanId ?? '\u2014'} size="sm" tone="replay" />
               <Readout label="filled" value={pct(raster.coverage * 100, 1)} size="sm" />

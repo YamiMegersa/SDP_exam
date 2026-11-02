@@ -226,6 +226,13 @@ export type PlatformEvent =
   | { kind: 'broker'; connected: boolean; detail?: string }
   | { kind: 'ingest'; dropped: number; gaps: number; lastRecvTs: number };
 
+/** One row of `GET /api/alert-limits/:service`, as the ARL API publishes it. */
+export interface AlertLimit {
+  key: string;
+  value: number;
+  unit: string | null;
+}
+
 export interface ReplaySnapshot {
   id: string;
   services: string[];
