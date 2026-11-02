@@ -451,7 +451,7 @@ rebuilt from the stored scan rows — not from the broker or the API backlog.
 
 ```bash
 npm test            # 97 tests across 7 files (vitest)
-npm run test:watch
+npm run test:watch  # no root script — the watcher is `npm --workspace server run test:watch`
 npm run --workspace server test:typecheck   # typecheck the tests too
 ```
 
